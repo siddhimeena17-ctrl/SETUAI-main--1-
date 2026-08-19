@@ -1,0 +1,22 @@
+{
+  "name": "skypa-foundation-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "lint": "npm --prefix web run lint",
+    "typecheck": "npm --prefix web run typecheck",
+    "dev:web": "npm --prefix web run dev",
+    "dev:studio": "npm --prefix studio run dev",
+    "build:web": "npm --prefix web run build",
+    "build:studio": "npm --prefix studio run build",
+    "lint:web": "npm --prefix web run lint",
+    "schema:deploy": "npm --prefix studio run schema:deploy"
+  },
+  "dependencies": {
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  }
+}
