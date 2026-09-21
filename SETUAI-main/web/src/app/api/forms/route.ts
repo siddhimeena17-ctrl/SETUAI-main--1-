@@ -11,6 +11,8 @@ type FormPayload = {
 };
 
 const allowedFormTypes = new Set(["school", "volunteer", "sponsor", "contact"]);
+const DEFAULT_INQUIRY_FROM_EMAIL = "SetuAI inquiries <hello@setuai.org>";
+const DEFAULT_INQUIRY_NOTIFY_TO = "hello@setuai.org";
 
 export const runtime = "nodejs";
 
@@ -20,9 +22,9 @@ function escapeHtml(value: string) {
 
 async function notifyInquiry(input: { formType: string; name: string; email: string; organization: string; interest: string; message: string }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.INQUIRY_FROM_EMAIL;
-  const to = process.env.INQUIRY_NOTIFY_TO;
-  if (!apiKey || !from || !to) return;
+  const from = process.env.INQUIRY_FROM_EMAIL || DEFAULT_INQUIRY_FROM_EMAIL;
+  const to = process.env.INQUIRY_NOTIFY_TO || DEFAULT_INQUIRY_NOTIFY_TO;
+  if (!apiKey) return;
 
   const resend = new Resend(apiKey);
   const fields = [
