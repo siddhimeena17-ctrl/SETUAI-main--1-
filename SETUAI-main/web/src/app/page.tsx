@@ -1,3 +1,5 @@
+import { AiLearningLattice } from "@/components/ai-learning-lattice";
+import { SetuAiMark } from "@/components/setuai-mark";
 import { InteractiveMap } from "@/components/interactive-map";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +21,7 @@ export async function generateMetadata() {
 }
 export default async function HomePage() {
   const [content, posts] = await Promise.all([getSiteContent(), getPosts()]);
-  const { home, initiatives: work } = content;
+  const { home, visuals, initiatives: work } = content;
   const sections: Record<string, React.ReactNode> = {
     impact: (
       <section className="border-b border-[var(--color-line)] py-10">
@@ -346,41 +348,56 @@ export default async function HomePage() {
   };
   return (
     <>
-      <section className="relative bg-[var(--color-deep)] text-stone-50">
-        <div className="section-shell grid gap-10 py-16 lg:grid-cols-[1.3fr_0.7fr] lg:items-center lg:py-24">
-          <div>
-            <p className="mb-6 text-sm text-stone-50/80">{home.hero.kicker}</p>
-            <h1 className="balance text-[clamp(2.8rem,5.6vw,5rem)] font-light leading-[1.07] tracking-[-0.03em]">
+      <section className="relative min-h-[min(820px,calc(88dvh-76px))] overflow-hidden border-b border-[var(--color-line)] bg-[var(--color-deep)] text-stone-50">
+        <Image
+          src={home.hero.image.src}
+          alt={home.hero.image.alt}
+          fill
+          priority
+          sizes="100vw"
+          className="kinetic-image object-cover object-center opacity-70"
+        />
+        <div className="absolute inset-0 bg-[#142d33]/76" />
+        {visuals.hero3dEnabled ? (
+          <div className="absolute inset-y-8 right-0 hidden w-[48vw] lg:block">
+            <AiLearningLattice
+              label={visuals.hero3dLabel}
+              density={visuals.visualDensity}
+            />
+          </div>
+        ) : null}
+        <div className="relative mx-auto grid min-h-[min(820px,calc(88dvh-76px))] w-full max-w-6xl grid-cols-12 items-center px-4 py-16 md:px-8">
+          <div
+            className={[
+              "col-span-12 max-w-[60ch] motion-reveal lg:col-span-7",
+              visuals.motionEnabled ? "motion-rise" : "",
+            ].join(" ")}
+            data-animate
+          >
+            <div className="flex items-center gap-3">
+              <SetuAiMark
+                className="h-10 w-10 border border-stone-50/25 sm:h-11 sm:w-11"
+                preload
+                sizes="44px"
+              />
+              <p className="section-kicker section-kicker-accent">
+                {home.hero.kicker}
+              </p>
+            </div>
+            <h1 className="balance mt-6 max-w-4xl text-[clamp(3.25rem,8vw,5.8rem)] font-light leading-none tracking-tight">
               {home.hero.title}
             </h1>
-            <p className="pretty mt-7 max-w-[58ch] text-lg leading-8 text-stone-50/85">
+            <p className="pretty mt-6 max-w-[58ch] text-lg leading-8 text-stone-50/78 sm:text-xl">
               {home.hero.body}
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <ButtonLink {...home.hero.primaryCta} />
-              <ButtonLink {...home.hero.secondaryCta} variant="light" />
+              <ButtonLink
+                {...home.hero.secondaryCta}
+                className="border-stone-50/65 text-stone-50 hover:border-stone-50 hover:bg-stone-50 hover:text-[var(--color-ink)]"
+              />
             </div>
-            <Link
-              className="subtle-link mt-6 inline-block text-stone-50"
-              href="/platform"
-            >
-              Join the Platform Beta →
-            </Link>
           </div>
-          <figure className="relative">
-            <Image
-              src={home.hero.image.src}
-              alt={home.hero.image.alt}
-              width={640}
-              height={720}
-              priority
-              className="aspect-[4/5] w-full object-cover"
-            />
-            <figcaption className="mt-3 text-xs leading-5 text-stone-50/75">
-              Illustrative classroom image from SetuAI’s existing visual
-              library.
-            </figcaption>
-          </figure>
         </div>
       </section>
       {work.homeOrder.map((id) => (

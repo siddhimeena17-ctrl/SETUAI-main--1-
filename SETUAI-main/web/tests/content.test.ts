@@ -30,7 +30,7 @@ describe("CMS content compatibility", () => {
     old.visuals.motionEnabled = false;
     old.initiatives.recommendations = [];
     const result = mergeSiteContent(old);
-    expect(result.home.hero.title).toContain("AI-literate");
+    expect(result.home.hero.title).toBe("SetuAI");
     expect(result.home.intro.body).toEqual(old.home.intro.body);
     expect(result.home.hero.image.src).toBe("/api/media/custom-photo");
     expect(result.global.logo.src).toBe("/api/media/custom-logo");
@@ -45,6 +45,31 @@ describe("CMS content compatibility", () => {
     expect(result.visuals.motionEnabled).toBe(false);
     expect(result.initiatives.recommendations).toEqual([]);
     expect(result.global.email).toBe("setuai.edu@gmail.com");
+  });
+  it("restores the original hero without resetting the content-update release", () => {
+    const saved = structuredClone(fallbackSiteContent);
+    saved.contentVersion = "literacy-2026-10";
+    saved.home.hero.title =
+      "Building an AI-literate future, one learner at a time.";
+    saved.home.hero.image.src = "/api/media/approved-classroom";
+    saved.home.intro.body = ["Editor-approved introduction"];
+    saved.home.textbook.title = "Editor-approved textbook title";
+    saved.global.navCta = { label: "Custom action", href: "/contact" };
+    saved.seo.homeTitle = "Editor-approved metadata";
+    saved.initiatives.platform.title = "Editor-approved beta title";
+    saved.visuals.motionEnabled = false;
+    const result = mergeSiteContent(saved);
+    expect(result.home.hero).toEqual({
+      ...fallbackSiteContent.home.hero,
+      image: saved.home.hero.image,
+    });
+    expect(result.home.intro).toEqual(saved.home.intro);
+    expect(result.home.textbook).toEqual(saved.home.textbook);
+    expect(result.home.stats).toEqual(saved.home.stats);
+    expect(result.global).toEqual(saved.global);
+    expect(result.seo).toEqual(saved.seo);
+    expect(result.initiatives).toEqual(saved.initiatives);
+    expect(result.visuals).toEqual(saved.visuals);
   });
   it("preserves current-version edits and fills missing new fields", () => {
     const saved = structuredClone(fallbackSiteContent);

@@ -595,6 +595,20 @@ export function mergeSiteContent(
 
 function migrateLegacySiteContent(input: Partial<EditableSiteContent> | null) {
   if (!input || input.contentVersion === siteContentSchemaVersion) return input;
+  if (input.contentVersion === "literacy-2026-10") {
+    // Restore only the hero from the split-layout release. Preserve every
+    // unrelated editorial change and keep the existing classroom image.
+    return {
+      ...input,
+      home: {
+        ...input.home,
+        hero: {
+          ...fallbackSiteContent.home.hero,
+          image: input.home?.hero?.image || fallbackSiteContent.home.hero.image,
+        },
+      } as EditableSiteContent["home"],
+    };
+  }
   // A scoped read-through migration. Unrelated copy, visuals, pages, posts,
   // media, and editorial settings survive; no Redis data is written on read.
   const oldNavigation = input.global?.navigation || [];
