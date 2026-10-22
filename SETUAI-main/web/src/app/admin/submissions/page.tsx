@@ -2,6 +2,7 @@ import { AdminMutationButton } from "@/components/admin-actions";
 import { AdminShell } from "@/components/admin-shell";
 import { requireAdminPage } from "@/lib/admin-auth";
 import { getSubmissions } from "@/lib/cms";
+import { formspreeProjectUrl } from "@/lib/formspree";
 import { createMetadata } from "@/lib/seo";
 
 export const metadata = createMetadata({
@@ -20,6 +21,9 @@ export default async function AdminSubmissionsPage() {
 
   return (
     <AdminShell active="submissions" title="Submissions" description="Review inquiries, chapter applications, and beta requests. Email status means provider acceptance, not confirmed inbox delivery.">
+      <p className="mb-6 text-sm leading-7">
+        New inquiries and applications are saved in <a className="underline underline-offset-4" href={formspreeProjectUrl} target="_blank" rel="noopener noreferrer">the SetuAI Formspree project</a>. Previously saved inquiries remain below.
+      </p>
       {submissions.length ? (
         <div className="grid gap-4">
           {submissions.map((submission) => (

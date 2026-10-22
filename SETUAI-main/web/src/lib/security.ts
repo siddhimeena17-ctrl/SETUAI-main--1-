@@ -8,6 +8,7 @@ type RateLimitOptions = {
   limit: number;
   windowSeconds: number;
   identifier?: string;
+  storage?: "redis" | "memory";
 };
 
 type MemoryRateLimit = {
@@ -34,11 +35,16 @@ export function getClientIp(request: Request) {
 }
 
 export function hashIdentifier(value: string) {
-  return createHash("sha256").update(value || "unknown").digest("hex");
+  return createHash("sha256")
+    .update(value || "unknown")
+    .digest("hex");
 }
 
 export function clampText(value: unknown, maxLength: number) {
-  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
 }
 
 export async function checkPublicRateLimit({
@@ -47,10 +53,11 @@ export async function checkPublicRateLimit({
   limit,
   windowSeconds,
   identifier,
+  storage = "redis",
 }: RateLimitOptions) {
   const identity = identifier || getClientIp(request);
   const key = `skypa:public:rate:${scope}:${hashIdentifier(identity)}`;
-  const client = redis();
+  const client = storage === "memory" ? null : redis();
 
   if (client) {
     const count = await client.incr(key);
@@ -64,10 +71,19 @@ export async function checkPublicRateLimit({
   }
 
   const now = Date.now();
+  for (const [entryKey, entry] of memoryRateLimits) {
+    if (entry.resetAt <= now) memoryRateLimits.delete(entryKey);
+  }
+  if (memoryRateLimits.size >= 10000 && !memoryRateLimits.has(key)) {
+    return { allowed: false, remaining: 0, retryAfter: windowSeconds };
+  }
   const current = memoryRateLimits.get(key);
 
   if (!current || current.resetAt <= now) {
-    memoryRateLimits.set(key, { count: 1, resetAt: now + windowSeconds * 1000 });
+    memoryRateLimits.set(key, {
+      count: 1,
+      resetAt: now + windowSeconds * 1000,
+    });
     return { allowed: true, remaining: limit - 1, retryAfter: windowSeconds };
   }
 

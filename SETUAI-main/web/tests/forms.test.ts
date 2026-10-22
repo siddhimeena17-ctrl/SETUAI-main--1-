@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
-  save: vi.fn(),
+  submit: vi.fn(),
   content: vi.fn(),
-  notify: vi.fn(),
   rate: vi.fn(),
   subscribe: vi.fn(),
 }));
-vi.mock("@/lib/cms", () => ({
-  saveSubmission: mock.save,
-  getSiteContent: mock.content,
+vi.mock("@/lib/cms", () => ({ getSiteContent: mock.content }));
+vi.mock("@/lib/formspree", () => ({
+  submitToFormspree: mock.submit,
+  FormspreeError: class extends Error {
+    constructor(public status: number) {
+      super("Provider failed");
+    }
+  },
 }));
-vi.mock("@/lib/inquiry-email", () => ({ notifySubmission: mock.notify }));
 vi.mock("@/lib/security", () => ({
   checkPublicRateLimit: mock.rate,
   rateLimitResponse: () => Response.json({ error: "rate" }, { status: 429 }),
@@ -19,25 +22,26 @@ vi.mock("@/lib/subscribers", () => ({
   isValidEmail: (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
   requestUpdateSubscription: mock.subscribe,
 }));
+vi.mock("@/lib/observability", () => ({ logRouteError: vi.fn() }));
 import { POST } from "@/app/api/forms/route";
 import { defaultInitiatives } from "@/content/initiatives";
+import { FormspreeError } from "@/lib/formspree";
 function send(type = "contact", changes = {}, extra = {}) {
-  const payload = {
-    name: "Test Applicant",
-    email: "applicant@example.org",
-    organization: "Test School",
-    interest: "General question",
-    message: "Test inquiry",
-    privacyAcknowledged: "on",
-    ...changes,
-  };
   return POST(
     new Request("https://setuai.org/api/forms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         formType: type,
-        payload,
+        payload: {
+          name: "Test Applicant",
+          email: "applicant@example.org",
+          organization: "Test School",
+          interest: "General question",
+          message: "Test inquiry",
+          privacyAcknowledged: "on",
+          ...changes,
+        },
         sourcePage: "/contact",
         ...extra,
       }),
@@ -50,22 +54,18 @@ beforeEach(() => {
   mock.content.mockResolvedValue({
     initiatives: structuredClone(defaultInitiatives),
   });
-  mock.save.mockResolvedValue({
-    submission: { id: "saved", notificationStatus: "pending" },
-    duplicate: false,
-  });
-  mock.notify.mockResolvedValue({ status: "sent" });
+  mock.submit.mockResolvedValue({ submissionId: "saved", duplicate: false });
   mock.subscribe.mockResolvedValue({ confirmationSent: true });
 });
-describe("public application boundary", () => {
-  it("validates chapter-specific required fields and privacy", async () => {
+describe("Formspree application boundary", () => {
+  it("validates chapter-specific required fields and privacy before sending", async () => {
     expect((await send("chapter", { city: "Delhi" })).status).toBe(400);
     expect((await send("contact", { privacyAcknowledged: false })).status).toBe(
       400,
     );
-    expect(mock.save).not.toHaveBeenCalled();
+    expect(mock.submit).not.toHaveBeenCalled();
   });
-  it("stores all chapter fields without subscribing the applicant", async () => {
+  it("preserves chapter fields and source, without adding marketing consent", async () => {
     const response = await send(
       "chapter",
       {
@@ -75,19 +75,21 @@ describe("public application boundary", () => {
         motivation: "Local learning",
         activities: "Learning sessions",
         updatesOptIn: "on",
+        _to: "someone@example.org",
       },
       { sourcePage: "/chapters" },
     );
     expect(response.status).toBe(200);
-    expect(mock.save.mock.calls[0][0]).toMatchObject({
+    expect(mock.submit.mock.calls[0][0]).toMatchObject({
       formType: "chapter",
       sourcePage: "/chapters",
       fields: { city: "Delhi", activities: "Learning sessions" },
       updatesOptIn: false,
     });
+    expect(mock.submit.mock.calls[0][0].fields).not.toHaveProperty("_to");
     expect(mock.subscribe).not.toHaveBeenCalled();
   });
-  it("supports beta requests without requiring a message or organization", async () => {
+  it("supports beta requests without a message or organization", async () => {
     expect(
       (
         await send("beta", {
@@ -107,40 +109,47 @@ describe("public application boundary", () => {
       (await send("beta", { role: "Educator", participation: "Individual" }))
         .status,
     ).toBe(409);
-    expect(mock.save).not.toHaveBeenCalled();
+    expect(mock.submit).not.toHaveBeenCalled();
   });
-  it("keeps the saved request successful when email or separate newsletter delivery fails", async () => {
-    mock.notify.mockRejectedValue(new Error("Provider unavailable"));
-    mock.subscribe.mockRejectedValue(new Error("Newsletter unavailable"));
-    const result = await (await send("contact", { updatesOptIn: "on" })).json();
+  it("does not depend on Redis and never claims inbox delivery", async () => {
+    const result = await (await send()).json();
     expect(result).toMatchObject({
       ok: true,
-      notification: "pending",
-      subscription: "pending",
+      notification: "managed",
       submissionId: "saved",
     });
+    expect(
+      mock.rate.mock.calls.every(([options]) => options.storage === "memory"),
+    ).toBe(true);
   });
-  it("sends no email when storage fails and allows an honest retry", async () => {
-    mock.save.mockRejectedValue(new Error("Storage offline"));
-    expect((await send()).status).toBe(503);
-    expect(mock.notify).not.toHaveBeenCalled();
+  it("keeps a received inquiry successful when separate newsletter confirmation fails", async () => {
+    mock.subscribe.mockRejectedValue(new Error("Newsletter unavailable"));
+    expect(
+      await (await send("contact", { updatesOptIn: "on" })).json(),
+    ).toMatchObject({ ok: true, subscription: "pending" });
   });
-  it("uses the same fingerprint across reloads and does not repeat newsletter requests", async () => {
+  it("shows provider failure and capacity errors without reporting success or subscribing", async () => {
+    mock.submit.mockRejectedValue(new Error("Provider offline"));
+    expect((await send("contact", { updatesOptIn: "on" })).status).toBe(503);
+    expect(mock.subscribe).not.toHaveBeenCalled();
+    mock.submit.mockRejectedValue(new FormspreeError(429));
+    const response = await send();
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("60");
+  });
+  it("uses a stable reference across reloads and skips duplicate newsletter requests", async () => {
     await send();
     await send();
-    expect(mock.save.mock.calls[0][1]).toBe(mock.save.mock.calls[1][1]);
-    mock.save.mockResolvedValue({
-      submission: { id: "saved", notificationStatus: "sent" },
-      duplicate: true,
-    });
+    expect(mock.submit.mock.calls[0][1]).toBe(mock.submit.mock.calls[1][1]);
+    mock.submit.mockResolvedValue({ submissionId: "saved", duplicate: true });
     await send("contact", { updatesOptIn: "on" });
     expect(mock.subscribe).not.toHaveBeenCalled();
   });
-  it("preserves honeypot protection, rate limits, and field length validation", async () => {
+  it("preserves honeypot protection, rate limits, and length limits", async () => {
     expect((await send("contact", { companyWebsite: "spam" })).status).toBe(
       200,
     );
-    expect(mock.save).not.toHaveBeenCalled();
+    expect(mock.submit).not.toHaveBeenCalled();
     expect((await send("contact", { name: "a".repeat(121) })).status).toBe(400);
     mock.rate.mockResolvedValue({ allowed: false });
     expect((await send()).status).toBe(429);
