@@ -46,14 +46,17 @@ export function LeadForm({
       form.reset();
       setStatus("success");
       setStatusMessage(
-        result?.notification === "sent"
-          ? "Your request was saved and the email provider accepted the notification for SetuAI. The team will follow up."
-          : "Your request was saved. The team can review it in the admin workspace; its email notification is pending. Please do not submit it again.",
+        "Thank you. Your request has been received. SetuAI will follow up using the contact details you provided.",
       );
       if (result?.subscription === "confirmation-sent")
         setStatusMessage(
           (message) =>
             `${message} Check your email to confirm the separate updates subscription.`,
+        );
+      if (result?.subscription === "pending")
+        setStatusMessage(
+          (message) =>
+            `${message} Your interest in email updates was noted; a separate confirmation is still required before you are subscribed.`,
         );
     } catch (error) {
       setStatus("error");

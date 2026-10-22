@@ -1,26 +1,14 @@
+import { inquirySubject } from "@/lib/inquiry-subject";
+export { inquirySubject } from "@/lib/inquiry-subject";
 import { Resend } from "resend";
 import {
   acquireNotificationLock,
   getSubmission,
   releaseNotificationLock,
   updateSubmission,
-  type CmsSubmission,
 } from "@/lib/cms";
 
 export const inquiryRecipient = "setuai.edu@gmail.com";
-export function inquirySubject(input: CmsSubmission) {
-  const labels: Record<string, string> = {
-    chapter: "Chapter Application",
-    beta: "Platform Beta",
-    textbook: "Textbook Inquiry",
-    school: "School Inquiry",
-    nonprofit: "Nonprofit Inquiry",
-    volunteer: "Volunteer Inquiry",
-    sponsor: "Sponsorship Inquiry",
-    contact: "Contact",
-  };
-  return `[SetuAI ${labels[input.formType] || "Inquiry"}] ${input.formType === "textbook" ? input.organization || input.name : input.name}${input.formType === "chapter" && input.organization ? ` — ${input.organization}` : ""}`;
-}
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")

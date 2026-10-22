@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { saveSubmission, getSiteContent } from "@/lib/cms";
-import { notifySubmission } from "@/lib/inquiry-email";
+import { getSiteContent } from "@/lib/cms";
+import { submitToFormspree, FormspreeError } from "@/lib/formspree";
+import { logRouteError } from "@/lib/observability";
 import { fieldsFor, formTypes, type FormType } from "@/content/form-fields";
 import { checkPublicRateLimit, rateLimitResponse } from "@/lib/security";
 import { isValidEmail, requestUpdateSubscription } from "@/lib/subscribers";
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
       scope: "forms-ip",
       limit: 8,
       windowSeconds: 900,
+      storage: "memory",
     });
     if (!rate.allowed) return rateLimitResponse(rate.retryAfter);
     if (!request.headers.get("content-type")?.includes("application/json"))
@@ -102,6 +104,7 @@ export async function POST(request: Request) {
       identifier: values.email,
       limit: 4,
       windowSeconds: 3600,
+      storage: "memory",
     });
     if (!emailRate.allowed) return rateLimitResponse(emailRate.retryAfter);
     if (type === "chapter" || type === "beta") {
@@ -124,8 +127,8 @@ export async function POST(request: Request) {
       /^\/[a-z0-9/-]*$/i.test(body.sourcePage)
         ? body.sourcePage.slice(0, 200)
         : "/contact";
-    // Identical payloads share a durable ID, even across concurrent requests,
-    // page reloads, client timeouts, and notification retries.
+    // Include a stable reference in the provider record for retry handling.
+    // Never make delivery depend on the unavailable Redis submissions store.
     const fingerprint = createHash("sha256")
       .update(JSON.stringify({ type, values, updatesOptIn }))
       .digest("hex");
@@ -137,7 +140,7 @@ export async function POST(request: Request) {
           ),
       ),
     );
-    const { submission, duplicate } = await saveSubmission(
+    const { submissionId, duplicate } = await submitToFormspree(
       {
         formType: type,
         name: values.name,
@@ -155,13 +158,6 @@ export async function POST(request: Request) {
       },
       fingerprint,
     );
-    let notification: "sent" | "pending" =
-      submission.notificationStatus === "sent" ? "sent" : "pending";
-    try {
-      notification = (await notifySubmission(submission.id)).status;
-    } catch {
-      /* Saved inquiry remains visible and retryable in admin. */
-    }
     let subscription = "not-requested";
     if (updatesOptIn && !duplicate) {
       try {
@@ -181,16 +177,30 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({
       ok: true,
-      submissionId: submission.id,
+      submissionId,
       duplicate,
-      notification,
+      notification: "managed",
       subscription,
     });
-  } catch {
+  } catch (error) {
+    logRouteError("inquiry_submission_failed", {
+      route: "/api/forms",
+      provider: "formspree",
+      status: error instanceof FormspreeError ? error.status : 503,
+    });
+    if (error instanceof FormspreeError && error.status === 429) {
+      return NextResponse.json(
+        {
+          error:
+            "The inquiry service is temporarily at capacity. Please wait before trying again, or email setuai.edu@gmail.com.",
+        },
+        { status: 429, headers: { "Retry-After": "60" } },
+      );
+    }
     return NextResponse.json(
       {
         error:
-          "We could not save your request. Please try again or email setuai.edu@gmail.com.",
+          "We could not confirm your request. Please try again later or email setuai.edu@gmail.com.",
       },
       { status: 503 },
     );

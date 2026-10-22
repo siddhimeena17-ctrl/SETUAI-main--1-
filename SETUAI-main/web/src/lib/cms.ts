@@ -308,24 +308,28 @@ export async function getPages() {
     await readCollection<CmsPage>(keys.pages, fallbackPages()),
   );
   return pages.map((page) => {
-    if (
-      page.slug !== "privacy" ||
-      JSON.stringify(page.sections).includes("Chapter applications")
-    )
-      return page;
-    return {
-      ...page,
-      sections: [
-        ...page.sections,
-        {
-          type: "text" as const,
-          title: "Chapter and beta requests",
-          body: [
-            "Chapter applications ask for city, country, proposed setting, motivation, experience, activities, and estimated participation. Beta requests ask about role and participation interests. SetuAI stores these details for review and follow-up. Neither form subscribes applicants to marketing updates.",
-          ],
-        },
-      ],
-    };
+    if (page.slug !== "privacy") return page;
+    const existingText = JSON.stringify(page.sections);
+    const additions: PageSection[] = [];
+    if (!existingText.includes("Chapter applications"))
+      additions.push({
+        type: "text",
+        title: "Chapter and beta requests",
+        body: [
+          "Chapter applications ask for city, country, proposed setting, motivation, experience, activities, and estimated participation. Beta requests ask about role and participation interests. SetuAI uses these details for review and follow-up. Neither form subscribes applicants to marketing updates.",
+        ],
+      });
+    if (!existingText.includes("Formspree"))
+      additions.push({
+        type: "text",
+        title: "Inquiry and application processing",
+        body: [
+          "SetuAI uses Formspree to process and store inquiry and application submissions and send notification emails to its team. The submitted details are used to review and respond to the request. Optional interest in email updates is recorded separately and does not activate a subscription without confirmation.",
+        ],
+      });
+    return additions.length
+      ? { ...page, sections: [...page.sections, ...additions] }
+      : page;
   });
 }
 
