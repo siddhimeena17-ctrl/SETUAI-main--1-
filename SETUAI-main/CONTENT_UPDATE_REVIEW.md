@@ -111,3 +111,13 @@ npm run build:web
 ```
 
 The review branch is `codex/setuai-content-and-recommendations`. No merge or production deployment is part of this delivery. Remaining release gates are review/merge authorization, verification of the actual deployment environment, and controlled live delivery/admin checks. Additional assets and publication/platform destinations can be supplied through the existing protected editor as they become approved.
+
+## Hosted PR checks
+
+GitHub’s Vercel integration generated protected previews after the branch push. The `setuai-main-1` check completed successfully. A correctly rooted `setuai-main-1-n9ew` preview is also linked from the PR. The previews require Vercel team authentication; their page content could not be inspected with the available account.
+
+- [Vercel preview for setuai-main-1-n9ew](https://setuai-main-1-n9ew-git-codex-setuai-content-and-282846-setu-ai1.vercel.app)
+- [Alternate Vercel build failure](https://vercel.com/setu-ai1/setuai-main-1-7oov/Ao3LSF9ShHbKY79TdqAdF7dLobEi)
+- [Netlify deploy-preview failure](https://app.netlify.com/projects/moonlit-sawine-ef3d3a/deploys/6ad984b6a8ebd98171a84456)
+
+The `setuai-main-1-7oov` and Netlify integrations reported failures. Their causes are unverified because the connected Vercel account lacks access to the `setu-ai1` team and the deployment logs are private. The Vercel CLI also cannot access that scope. Do not interpret passing local checks as passing every hosted check. Review the intended hosting target and the failed integrations before merge/release; production hosting settings were not changed.
