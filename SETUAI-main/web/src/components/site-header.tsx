@@ -26,7 +26,7 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
         {t("Skip to content")}
       </a>
       <div className="mx-auto flex min-h-20 w-full max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
-        <Link href="/" className="flex items-center gap-3" aria-label={`${global.siteName} home`}>
+        <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={`${global.siteName} home`}>
           {global.logo.src ? (
             <span className="grid h-12 w-12 place-items-center border border-[var(--color-line)] bg-[var(--color-surface)]">
               <Image
@@ -53,13 +53,13 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label={t("Main navigation")}>
+        <nav className="hidden items-center gap-1 xl:flex" aria-label={t("Main navigation")}>
           {global.navigation.map((item) =>
             item.children ? (
               <div className="group relative" key={item.label}>
                 <Link
                   href={item.href}
-                  className="focus-ring flex min-h-11 items-center gap-1 px-3 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-tint)]"
+                  className="focus-ring flex min-h-11 whitespace-nowrap items-center gap-1 px-2 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-tint)]"
                 >
                   {t(item.label)}
                   <ChevronDown aria-hidden="true" size={15} />
@@ -85,7 +85,7 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="focus-ring flex min-h-11 items-center px-3 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-tint)]"
+                className="focus-ring flex min-h-11 whitespace-nowrap items-center px-2 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-tint)]"
               >
                 {t(item.label)}
               </Link>
@@ -93,12 +93,12 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
           )}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-3 xl:flex">
           <LanguageToggle />
-          <ButtonLink label={global.navCta.label} href={global.navCta.href} variant={global.navCta.variant} />
+          <ButtonLink label={global.navCta.label} href={global.navCta.href} variant={global.navCta.variant} className="whitespace-nowrap" />
         </div>
 
-        <div className="relative lg:hidden">
+        <div className="relative xl:hidden">
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
@@ -110,7 +110,7 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
             {menuOpen ? <X aria-hidden="true" size={22} /> : <Menu aria-hidden="true" size={22} />}
           </button>
           {menuOpen ? (
-          <nav id="site-mobile-menu" className="absolute right-0 top-14 w-[min(92vw,360px)] border border-[var(--color-line)] bg-[var(--background)] p-3" aria-label={t("Main navigation")}>
+          <nav id="site-mobile-menu" className="absolute right-0 top-14 max-h-[calc(100dvh-7rem)] w-[min(92vw,360px)] overflow-y-auto border border-[var(--color-line)] bg-[var(--background)] p-3" aria-label={t("Main navigation")}>
             {global.navigation.map((item) => (
               <div key={item.href}>
                 <Link
@@ -137,8 +137,8 @@ export function SiteHeader({ content }: { content: EditableSiteContent }) {
               </div>
             ))}
             <div className="mt-2 grid gap-2 border-t border-[var(--color-line)] pt-3">
-              <LanguageToggle className="w-full" />
-              <ButtonLink label={global.navCta.label} href={global.navCta.href} variant={global.navCta.variant} className="w-full" />
+              <LanguageToggle className="w-full whitespace-nowrap" />
+              <ButtonLink label={global.navCta.label} href={global.navCta.href} variant={global.navCta.variant} className="w-full whitespace-nowrap" />
             </div>
           </nav>
           ) : null}

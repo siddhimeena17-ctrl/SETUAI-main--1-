@@ -1,3 +1,5 @@
+import { getSiteContent } from "@/lib/cms";
+import { currentChatbotFacts } from "@/lib/chatbot-context";
 import { createGateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const currentFacts = currentChatbotFacts(await getSiteContent());
     const model = process.env.AI_GATEWAY_MODEL || defaultModel;
     const aiGateway = createGateway({ apiKey });
     const result = await generateText({
@@ -100,7 +103,7 @@ export async function POST(request: Request) {
         "Use only approved facts below. If a detail is not provided, say that SetuAI can follow up through the contact form.",
         "Do not invent confirmed schools, company partners, tax status details, dollar amounts, or impact results.",
         "Approved facts:",
-        ...chatbotKnowledge.map((fact) => `- ${fact}`),
+        ...[...chatbotKnowledge, ...currentFacts].map((fact) => `- ${fact}`),
       ].join("\n"),
       messages: messages.map((message) => ({
         role: message.role,

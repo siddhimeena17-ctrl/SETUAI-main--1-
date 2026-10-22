@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { defaultLocale, isLocale, type Locale } from "@/lib/i18n";
+import { defaultLocale, hindiContentReviewed, isLocale, type Locale } from "@/lib/i18n";
 
 type LanguageContextValue = {
   locale: Locale;
@@ -16,12 +16,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
-    if (stored && isLocale(stored)) {
+    if (stored && isLocale(stored) && (stored !== "hi" || hindiContentReviewed)) {
       const timeout = window.setTimeout(() => setLocaleState(stored), 0);
       return () => window.clearTimeout(timeout);
     }
 
-    if (window.navigator.language.toLowerCase().startsWith("hi")) {
+    if (hindiContentReviewed && window.navigator.language.toLowerCase().startsWith("hi")) {
       const timeout = window.setTimeout(() => setLocaleState("hi"), 0);
       return () => window.clearTimeout(timeout);
     }
@@ -38,7 +38,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LanguageContextValue>(
     () => ({
       locale,
-      setLocale: setLocaleState,
+      setLocale: (next: Locale) => setLocaleState(next === "hi" && !hindiContentReviewed ? "en" : next),
     }),
     [locale],
   );

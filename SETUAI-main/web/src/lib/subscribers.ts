@@ -49,13 +49,14 @@ export async function requestUpdateSubscription({ email, name = "", source = "up
   const resend = new Resend(configuration.apiKey);
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: configuration.from,
       to: normalizedEmail,
       subject: "Confirm your SetuAI updates subscription",
       html: `<p>Hello ${safeName},</p><p>Please confirm that you want to receive SetuAI progress updates.</p><p><a href="${confirmUrl}">Confirm updates subscription</a></p><p>If you did not request this, you can ignore this email.</p>`,
       text: `Hello ${name.trim() || "there"},\n\nPlease confirm that you want to receive SetuAI progress updates:\n${confirmUrl}\n\nIf you did not request this, you can ignore this email.`,
     });
+    if (result.error || !result.data?.id) throw new Error("Confirmation email not accepted");
     return { stored: true, confirmationSent: true, alreadyConfirmed: false };
   } catch {
     return { stored: true, confirmationSent: false, reason: "email-send-failed" as const };

@@ -105,9 +105,9 @@ export const siteConfig = {
   shortName: "SetuAI",
   tagline: "Practical AI literacy for schools and communities.",
   description:
-    "SetuAI is an active AI literacy initiative convened by Summit Intelligent Systems, Shikivaa Foundation, and SKYPA Foundation. We build practical, responsible AI learning pathways with schools, education nonprofits, and community partners.",
+    "SetuAI builds practical AI literacy with schools and communities. Explore our textbook publication effort, chapter applications, and internationally developed platform beta. 14,000 students reached.",
   url: "https://setuai.org",
-  email: "hello@setuai.org",
+  email: "setuai.edu@gmail.com",
   image: "/images/skypa-hero-classroom.png",
 };
 
@@ -133,19 +133,15 @@ export const foundingPartners = [
 ] as const;
 
 export const headerNav: LinkItem[] = [
-  { label: "About", href: "/about" },
-  {
-    label: "For partners",
-    href: "/partners",
-    children: [
-      { label: "Schools", href: "/schools", description: "Start a practical partnership conversation." },
-      { label: "Education nonprofits", href: "/partners", description: "Explore a community learning collaboration." },
-      { label: "Sponsors", href: "/contact?interest=sponsor", description: "Discuss active material and partnership support." },
-    ],
-  },
-  { label: "Textbook", href: "/textbook" },
-  { label: "Updates", href: "/updates" },
-  { label: "Get involved", href: "/get-involved" },
+  { label: "Textbook", href: "/textbook" }, { label: "Chapters", href: "/chapters" }, { label: "Platform", href: "/platform" },
+  { label: "About", href: "/about", children: [
+    { label: "Our mission", href: "/about" }, { label: "Impact", href: "/impact" },
+    { label: "Programs", href: "/programs" }, { label: "Updates", href: "/updates" }, { label: "Resources", href: "/resources" },
+  ] },
+  { label: "Get involved", href: "/get-involved", children: [
+    { label: "Partners", href: "/partners" }, { label: "Schools", href: "/schools" },
+    { label: "Recommendations", href: "/recommendations" }, { label: "Contact", href: "/contact" },
+  ] },
 ];
 
 export const footerColumns: { title: string; links: LinkItem[] }[] = [
@@ -154,13 +150,16 @@ export const footerColumns: { title: string; links: LinkItem[] }[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "How we measure", href: "/impact" },
-      { label: "Textbook initiative", href: "/textbook" },
+      { label: "Textbook", href: "/textbook" },
+      { label: "Recommendations", href: "/recommendations" },
+      { label: "Platform beta", href: "/platform" },
       { label: "Updates", href: "/updates" },
     ],
   },
   {
     title: "Work with us",
     links: [
+      { label: "Start a chapter", href: "/chapters" },
       { label: "For schools", href: "/schools" },
       { label: "For education nonprofits", href: "/partners" },
       { label: "Sponsor interest", href: "/contact?interest=sponsor" },
@@ -178,32 +177,7 @@ export const footerColumns: { title: string; links: LinkItem[] }[] = [
   },
 ];
 
-export const impactStats: Stat[] = [
-  {
-    value: "Launched",
-    label: "Organization status",
-    detail:
-      "SetuAI is now operating as an independent initiative focused on practical AI literacy, education, and building.",
-  },
-  {
-    value: "Ready",
-    label: "Textbook and learning materials",
-    detail:
-      "The student-facing AI textbook and supporting learning materials have been developed, reviewed, and are ready for implementation.",
-  },
-  {
-    value: "Active",
-    label: "Partnerships and programs",
-    detail:
-      "SetuAI is actively working with schools, educators, nonprofits, and community partners to bring practical AI learning to more learners.",
-  },
-  {
-    value: "Builder-first",
-    label: "Design principle",
-    detail:
-      "We focus on practical understanding, responsible use, experimentation, and the confidence to build with AI.",
-  },
-];
+export const impactStats: Stat[] = [{ value: "14,000", label: "students reached", detail: "Owner-reported reach through SetuAI’s work with schools and communities." }];
 
 export const homePillars: Card[] = [
   {
@@ -269,9 +243,9 @@ const corePagesBase: SitePage[] = [
   },
   {
     slug: "textbook",
-    title: "The SetuAI Textbook Initiative",
+    title: "SETU AI: A Field Guide to Building with Artificial Intelligence",
     eyebrow: "Active materials",
-    summary: "SetuAI builds practical, classroom-ready AI literacy materials and keeps improving them through review and implementation.",
+    summary: "Our AI literacy textbook for Grades 8–12 has been reviewed by educational organizations and is being prepared for publication.",
     description: "Explore SetuAI's AI literacy textbook initiative and the process used to develop, review, validate, release, and improve classroom-ready materials.",
     image: "/images/skypa-ai-textbook.png",
     imageAlt: "Concept image of AI literacy workbook materials.",
@@ -288,7 +262,7 @@ const corePagesBase: SitePage[] = [
       },
       {
         type: "cards",
-        title: "Topics under consideration.",
+        title: "Confirmed learning topics.",
         body: "These are core learning themes in active review and iteration, shaped by classroom use, educator feedback, and practical implementation.",
         cards: [
           { title: "How AI works", body: "Simple models for data, patterns, outputs, and the limits of automated systems.", icon: "book" },
@@ -303,7 +277,7 @@ const corePagesBase: SitePage[] = [
           { title: "01 · Defined & Developed", body: "We established the learning goals, intended age groups, scope, sources, and practical format before developing the materials." },
           { title: "02 · Reviewed & Tested", body: "The materials were reviewed for educational quality, accessibility, safeguarding, accuracy, and clarity, with feedback incorporated throughout the process." },
           { title: "03 · Validated for Use", body: "The completed materials were checked against their intended learning outcomes and reviewed to ensure they are practical, age-appropriate, and ready for implementation." },
-          { title: "04 · Released & Updated", body: "The approved version is now available for use. We document releases, continue gathering feedback, and update the materials as we learn." },
+          { title: "04 · Publication preparation", body: "The manuscript has been reviewed and is being prepared for publication. Public sample and availability details will be shared when confirmed." },
         ],
       },
     ],
@@ -347,17 +321,17 @@ const corePagesBase: SitePage[] = [
   },
   {
     slug: "impact",
-    title: "How SetuAI Will Measure Responsibly",
-    eyebrow: "Measurement in design",
-    summary: "SetuAI has no verified impact figures to report yet. It is building a transparent measurement approach before public outcomes are claimed.",
+    title: "SetuAI’s Reach and Measurement",
+    eyebrow: "14,000 students reached",
+    summary: "SetuAI has reached 14,000 students. Read what this reach figure describes and how we distinguish reach from learning outcomes.",
     description: "Read how SetuAI plans to document future AI literacy work responsibly before publishing participant, partner, or learning impact claims.",
     cta: { label: "Share a measurement perspective", href: "/contact" },
     sections: [
       {
         type: "text",
-        title: "No impact numbers before there is evidence.",
+        title: "What our reach figure describes.",
         body: [
-          "SetuAI will not treat projected seats, informal conversations, or proposed learning tracks as completed impact. The site currently reports no verified learner, school, distribution, fundraising, or program outcomes.",
+          "SetuAI reports 14,000 students reached, based on the owner-provided update. Reach does not mean students trained, graduates, active platform users, or verified learning outcomes.",
           "Before publishing metrics, the organization needs a consistent definition, collection method, review owner, reporting date, and clear distinction between activity, output, feedback, and outcome.",
         ],
       },
@@ -384,7 +358,7 @@ const corePagesBase: SitePage[] = [
         type: "text",
         title: "What this site collects.",
         body: [
-          "When a visitor sends an inquiry, the site collects the information entered in the form, including name, email address, organization, selected interest, and message. When a visitor subscribes to updates, the site collects the name and email address provided for that purpose.",
+          "When a visitor sends an inquiry, the site collects the information entered in the form, including name, email address, organization, selected interest, and message. Chapter applications also ask for city, country, proposed setting, motivation, experience, activities, and estimated participation. Beta requests ask about role and participation interests. These details are used to review and respond to the request. When a visitor subscribes to updates, the site collects the name and email address provided for that purpose.",
           "The site does not ask for payment details, student records, health information, or sensitive personal information. Do not submit those details through public forms.",
           "This notice reflects how the site currently operates and is reviewed as part of SetuAI's ongoing operational practices. We keep the information clear, limited, and aligned with the work the site is actually doing.",
         ],
@@ -500,6 +474,7 @@ export const allStaticPaths = [
   "/partners",
   "/get-involved",
   "/contact",
+  "/chapters", "/platform", "/recommendations", "/resources",
 ];
 
 export const chatbotKnowledge = [
@@ -508,5 +483,6 @@ export const chatbotKnowledge = [
   "The initiative develops classroom-ready learning materials, including student-facing textbook content and supporting educational resources, with clear review and safeguarding standards.",
   "Schools, education nonprofits, and partners can use the contact form to begin a practical conversation. The form is not a booking or donation flow.",
   "Visitors can subscribe to updates only if they want emailed progress notices. Inquiries should not automatically subscribe someone to updates.",
+  "The general contact inbox is setuai.edu@gmail.com.",
   "Do not invent confirmed partner names, school names, program dates, student counts, tax status, legal status, or impact numbers.",
 ];

@@ -1,5 +1,6 @@
 "use client";
 
+import type { DivIcon } from "leaflet";
 import { ArrowRight, MapPin } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
@@ -72,7 +73,7 @@ export function InteractiveMap() {
         <div className="motion-reveal" data-animate>
           <div className="flex items-center gap-3">
             <MapPin aria-hidden="true" className="text-[var(--color-coral)]" size={18} />
-            <p className="section-kicker">Impact locations</p>
+            <p className="section-kicker">Collaboration locations</p>
           </div>
 
           <div className="mt-6 grid gap-8 lg:grid-cols-[1.18fr_0.82fr] lg:items-center">
@@ -159,7 +160,7 @@ function MapPinMarker({
   active: boolean;
   onSelect: () => void;
 }) {
-  const [icon, setIcon] = useState<{ options: unknown } | null>(null);
+  const [icon, setIcon] = useState<DivIcon | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,7 +200,7 @@ function MapPinMarker({
   return (
     <Marker
       position={[place.lat, place.lng]}
-      icon={icon as any}
+      icon={icon}
       eventHandlers={{ click: onSelect, mouseover: onSelect }}
     />
   );

@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const allowedTypes = {
+  "application/pdf": "pdf",
   "image/gif": "gif",
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -22,6 +23,7 @@ function filenameToAlt(filename: string) {
 }
 
 function hasValidSignature(bytes: Uint8Array, type: keyof typeof allowedTypes) {
+  if (type === "application/pdf") return Buffer.from(bytes.subarray(0, 5)).toString() === "%PDF-";
   if (type === "image/png") {
     return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
   }
@@ -71,7 +73,7 @@ export async function POST(request: Request) {
   const extension = allowedTypes[type];
 
   if (!extension) {
-    return NextResponse.json({ error: "Use a PNG, JPG, WebP, or GIF image" }, { status: 400 });
+    return NextResponse.json({ error: "Use a PNG, JPG, WebP, GIF, or approved public PDF" }, { status: 400 });
   }
 
   const bytes = new Uint8Array(await image.arrayBuffer());

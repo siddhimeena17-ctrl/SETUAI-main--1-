@@ -25,7 +25,7 @@ export function ButtonLink({
       className={cx(
         "animated-button focus-ring group inline-flex min-h-11 items-center justify-center gap-2 px-5 py-3 text-sm font-medium tracking-wide transition-[background-color,border-color,color,transform] duration-150 active:translate-y-px",
         variant === "primary" &&
-          "bg-[var(--color-coral)] text-white hover:bg-[var(--color-coral-deep)]",
+          "bg-[var(--color-coral-deep)] text-white hover:bg-[var(--color-ink)]",
         variant === "secondary" &&
           "border border-[var(--color-line)] bg-transparent text-[var(--color-ink)] hover:border-[var(--color-coral)] hover:bg-[var(--color-surface)]",
         variant === "light" &&

@@ -1,3 +1,4 @@
+import { defaultInitiatives, type InitiativeContent } from "@/content/initiatives";
 import {
   footerColumns,
   foundingPartners,
@@ -119,6 +120,7 @@ export type EditableVisualSettings = {
 
 export type EditableSiteContent = {
   contentVersion: string;
+  initiatives: InitiativeContent;
   global: EditableGlobalContent;
   seo: EditableSeoContent;
   home: EditableHomeContent;
@@ -126,10 +128,11 @@ export type EditableSiteContent = {
   updatedAt: string;
 };
 
-export const siteContentSchemaVersion = "launched-2026-08";
+export const siteContentSchemaVersion = "literacy-2026-10";
 
 export const fallbackSiteContent: EditableSiteContent = {
   contentVersion: siteContentSchemaVersion,
+  initiatives: defaultInitiatives,
   global: {
     siteName: siteConfig.name,
     shortName: siteConfig.shortName,
@@ -141,8 +144,8 @@ export const fallbackSiteContent: EditableSiteContent = {
       alt: "SetuAI wordmark",
     },
     navCta: {
-      label: "Start a conversation",
-      href: "/contact",
+      label: "Start a Chapter",
+      href: "/chapters",
     },
     navigation: headerNav,
     footerColumns,
@@ -156,27 +159,27 @@ export const fallbackSiteContent: EditableSiteContent = {
     copyrightLine: "Build with AI, responsibly.",
   },
   seo: {
-    homeTitle: "SetuAI | The bridge to AI-literate future",
+    homeTitle: "SetuAI | AI literacy, textbook, chapters, and platform beta",
     homeDescription: siteConfig.description,
     homeImage: "/images/skypa-hero-classroom.png",
   },
   home: {
     hero: {
       kicker: "An active AI literacy initiative",
-      title: "SetuAI",
-      body: "SetuAI is actively building practical, responsible AI learning with schools, educators, and community partners.",
+      title: "Building an AI-literate future, one learner at a time.",
+      body: "Our AI literacy textbook is being prepared for publication. Start a chapter, or join the beta of our learning platform, developed through international collaboration.",
       image: {
         src: "/images/skypa-hero-classroom.png",
         alt: "Students learning AI literacy with a teacher in a bright classroom.",
       },
       primaryCta: {
-        label: "Start a conversation",
-        href: "/contact",
+        label: "Explore the Textbook",
+        href: "/textbook",
         variant: "light",
       },
       secondaryCta: {
-        label: "See our approach",
-        href: "/about",
+        label: "Start a Chapter",
+        href: "/chapters",
         variant: "secondary",
       },
     },
@@ -228,14 +231,14 @@ export const fallbackSiteContent: EditableSiteContent = {
     },
     textbook: {
       kicker: "Textbook initiative",
-      title: "A textbook students can hold, revisit, and question.",
-      body: "SetuAI develops student-facing AI literacy materials with a clear review process, practical classroom relevance, and continuous improvement built in.",
+      title: defaultInitiatives.textbook.title,
+      body: defaultInitiatives.textbook.overview,
       image: {
         src: "/images/skypa-ai-textbook.png",
         alt: "AI literacy textbook and classroom workbook materials.",
       },
-      calloutLabel: "How we work",
-      calloutTitle: "We develop, review, validate, release, and improve our learning materials.",
+      calloutLabel: "Publication status",
+      calloutTitle: defaultInitiatives.textbook.status,
       bullets: [
         "Plain-language AI concepts",
         "Thoughtful prompting and verification",

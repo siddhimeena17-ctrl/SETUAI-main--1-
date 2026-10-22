@@ -1,7 +1,26 @@
+import {
+  defaultInitiatives,
+  newPartner,
+  type PartnerEntry,
+} from "@/content/initiatives";
+import { mergeInitiatives } from "@/lib/initiative-content";
 import { createHash, randomUUID } from "crypto";
 import { Redis } from "@upstash/redis";
-import { fallbackSiteContent, siteContentSchemaVersion, type EditableSiteContent } from "@/content/editable-site";
-import { corePages, programs, siteConfig, updates, type PageSection, type Program, type SitePage, type Update } from "@/content/site";
+import {
+  fallbackSiteContent,
+  siteContentSchemaVersion,
+  type EditableSiteContent,
+} from "@/content/editable-site";
+import {
+  corePages,
+  programs,
+  siteConfig,
+  updates,
+  type PageSection,
+  type Program,
+  type SitePage,
+  type Update,
+} from "@/content/site";
 
 export type CmsStatus = "draft" | "published";
 
@@ -60,6 +79,12 @@ export type CmsSubmission = {
   updatesOptIn: boolean;
   assignedTo?: string;
   notes?: string;
+  sourcePage?: string;
+  fields?: Record<string, string>;
+  notificationStatus?: "pending" | "sent" | "failed";
+  notificationError?: string;
+  notifiedAt?: string;
+  providerMessageId?: string;
 };
 
 export type CmsSubscriber = {
@@ -192,7 +217,8 @@ export const fallbackSettings: CmsSettings = {
   siteName: siteConfig.name,
   tagline: siteConfig.tagline,
   contactEmail: siteConfig.email,
-  announcement: "SetuAI is actively building practical AI literacy with schools, education nonprofits, and partner organizations.",
+  announcement:
+    "SetuAI is actively building practical AI literacy with schools, education nonprofits, and partner organizations.",
   primaryCtaLabel: "Start a conversation",
   primaryCtaHref: "/contact",
   updatedAt: now(),
@@ -203,7 +229,10 @@ async function readCollection<T>(key: string, fallback: T[]) {
   return stored?.length ? stored : fallback;
 }
 
-async function writeCollection<T extends { id: string }>(key: string, items: T[]) {
+async function writeCollection<T extends { id: string }>(
+  key: string,
+  items: T[],
+) {
   await writeValue(key, items);
 }
 
@@ -222,7 +251,9 @@ export async function getPublishedPosts() {
 
 export async function getPost(idOrSlug: string) {
   const posts = await getPosts();
-  return posts.find((post) => post.id === idOrSlug || post.slug === idOrSlug) || null;
+  return (
+    posts.find((post) => post.id === idOrSlug || post.slug === idOrSlug) || null
+  );
 }
 
 export async function savePost(input: Partial<CmsPost>) {
@@ -251,21 +282,65 @@ export async function savePost(input: Partial<CmsPost>) {
 
 export async function deletePost(id: string) {
   const posts = await getPosts();
-  await writeCollection(keys.posts, posts.filter((post) => post.id !== id));
+  await writeCollection(
+    keys.posts,
+    posts.filter((post) => post.id !== id),
+  );
+}
+
+function currentGeneralContact<T>(value: T): T {
+  if (typeof value === "string")
+    return value.replaceAll("hello@setuai.org", "setuai.edu@gmail.com") as T;
+  if (Array.isArray(value))
+    return value.map((item) => currentGeneralContact(item)) as T;
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        currentGeneralContact(item),
+      ]),
+    ) as T;
+  return value;
 }
 
 export async function getPages() {
-  return readCollection<CmsPage>(keys.pages, fallbackPages());
+  const pages = currentGeneralContact(
+    await readCollection<CmsPage>(keys.pages, fallbackPages()),
+  );
+  return pages.map((page) => {
+    if (
+      page.slug !== "privacy" ||
+      JSON.stringify(page.sections).includes("Chapter applications")
+    )
+      return page;
+    return {
+      ...page,
+      sections: [
+        ...page.sections,
+        {
+          type: "text" as const,
+          title: "Chapter and beta requests",
+          body: [
+            "Chapter applications ask for city, country, proposed setting, motivation, experience, activities, and estimated participation. Beta requests ask about role and participation interests. SetuAI stores these details for review and follow-up. Neither form subscribes applicants to marketing updates.",
+          ],
+        },
+      ],
+    };
+  });
 }
 
 export async function getPage(idOrSlug: string) {
   const pages = await getPages();
-  return pages.find((page) => page.id === idOrSlug || page.slug === idOrSlug) || null;
+  return (
+    pages.find((page) => page.id === idOrSlug || page.slug === idOrSlug) || null
+  );
 }
 
 export async function savePage(input: Partial<CmsPage>) {
   const pages = await getPages();
-  const existing = input.id ? pages.find((item) => item.id === input.id) : undefined;
+  const existing = input.id
+    ? pages.find((item) => item.id === input.id)
+    : undefined;
   const slug = slugify(input.slug || existing?.slug || input.title || "page");
   const id = input.id || idFromSlug("page", slug);
   const page: CmsPage = {
@@ -279,11 +354,16 @@ export async function savePage(input: Partial<CmsPage>) {
     imageAlt: input.imageAlt || existing?.imageAlt,
     cta: input.cta || existing?.cta,
     secondaryCta: input.secondaryCta || existing?.secondaryCta,
-    sections: Array.isArray(input.sections) ? (input.sections as PageSection[]) : existing?.sections || [],
+    sections: Array.isArray(input.sections)
+      ? (input.sections as PageSection[])
+      : existing?.sections || [],
     status: input.status || "draft",
     updatedAt: now(),
   };
-  await writeCollection(keys.pages, [page, ...pages.filter((item) => item.id !== id)]);
+  await writeCollection(keys.pages, [
+    page,
+    ...pages.filter((item) => item.id !== id),
+  ]);
   return page;
 }
 
@@ -293,7 +373,11 @@ export async function getPrograms() {
 
 export async function getProgramEntry(idOrSlug: string) {
   const entries = await getPrograms();
-  return entries.find((program) => program.id === idOrSlug || program.slug === idOrSlug) || null;
+  return (
+    entries.find(
+      (program) => program.id === idOrSlug || program.slug === idOrSlug,
+    ) || null
+  );
 }
 
 export async function saveProgram(input: Partial<CmsProgram>) {
@@ -311,7 +395,9 @@ export async function saveProgram(input: Partial<CmsProgram>) {
     imageAlt: input.imageAlt,
     cta: input.cta,
     secondaryCta: input.secondaryCta,
-    sections: Array.isArray(input.sections) ? (input.sections as PageSection[]) : [],
+    sections: Array.isArray(input.sections)
+      ? (input.sections as PageSection[])
+      : [],
     audience: input.audience || "",
     length: input.length || "",
     outcomes: input.outcomes || [],
@@ -319,7 +405,10 @@ export async function saveProgram(input: Partial<CmsProgram>) {
     status: input.status || "draft",
     updatedAt: now(),
   };
-  await writeCollection(keys.programs, [entry, ...entries.filter((item) => item.id !== id)]);
+  await writeCollection(keys.programs, [
+    entry,
+    ...entries.filter((item) => item.id !== id),
+  ]);
   return entry;
 }
 
@@ -344,17 +433,25 @@ export async function saveGalleryAlbum(input: Partial<GalleryAlbum>) {
     status: input.status || "draft",
     updatedAt: now(),
   };
-  await writeCollection(keys.gallery, [album, ...albums.filter((item) => item.id !== id)]);
+  await writeCollection(keys.gallery, [
+    album,
+    ...albums.filter((item) => item.id !== id),
+  ]);
   return album;
 }
 
 export async function deleteGalleryAlbum(id: string) {
   const albums = await getGalleryAlbums();
-  await writeCollection(keys.gallery, albums.filter((album) => album.id !== id));
+  await writeCollection(
+    keys.gallery,
+    albums.filter((album) => album.id !== id),
+  );
 }
 
 export async function getSettings() {
-  return (await readValue<CmsSettings>(keys.settings)) || fallbackSettings;
+  const settings =
+    (await readValue<CmsSettings>(keys.settings)) || fallbackSettings;
+  return { ...settings, contactEmail: "setuai.edu@gmail.com" };
 }
 
 export async function saveSettings(input: Partial<CmsSettings>) {
@@ -367,15 +464,21 @@ export async function saveSettings(input: Partial<CmsSettings>) {
   return settings;
 }
 
-function mergeSiteContent(input: Partial<EditableSiteContent> | null): EditableSiteContent {
+export function mergeSiteContent(
+  input: Partial<EditableSiteContent> | null,
+): EditableSiteContent {
   const migratedInput = migrateLegacySiteContent(input);
-  const home = (migratedInput?.home || {}) as Partial<EditableSiteContent["home"]>;
+  const home = (migratedInput?.home || {}) as Partial<
+    EditableSiteContent["home"]
+  >;
 
   return {
     contentVersion: siteContentSchemaVersion,
+    initiatives: mergeInitiatives(migratedInput?.initiatives),
     global: {
       ...fallbackSiteContent.global,
       ...migratedInput?.global,
+      email: "setuai.edu@gmail.com",
       logo: {
         ...fallbackSiteContent.global.logo,
         ...migratedInput?.global?.logo,
@@ -384,10 +487,18 @@ function mergeSiteContent(input: Partial<EditableSiteContent> | null): EditableS
         ...fallbackSiteContent.global.navCta,
         ...migratedInput?.global?.navCta,
       },
-      navigation: migratedInput?.global?.navigation || fallbackSiteContent.global.navigation,
-      footerColumns: migratedInput?.global?.footerColumns || fallbackSiteContent.global.footerColumns,
-      footerUtilityLinks: migratedInput?.global?.footerUtilityLinks || fallbackSiteContent.global.footerUtilityLinks,
-      foundingPartners: migratedInput?.global?.foundingPartners || fallbackSiteContent.global.foundingPartners,
+      navigation:
+        migratedInput?.global?.navigation ||
+        fallbackSiteContent.global.navigation,
+      footerColumns:
+        migratedInput?.global?.footerColumns ||
+        fallbackSiteContent.global.footerColumns,
+      footerUtilityLinks:
+        migratedInput?.global?.footerUtilityLinks ||
+        fallbackSiteContent.global.footerUtilityLinks,
+      foundingPartners:
+        migratedInput?.global?.foundingPartners ||
+        fallbackSiteContent.global.foundingPartners,
     },
     seo: {
       ...fallbackSiteContent.seo,
@@ -430,7 +541,8 @@ function mergeSiteContent(input: Partial<EditableSiteContent> | null): EditableS
           ...fallbackSiteContent.home.heartbeat.image,
           ...home.heartbeat?.image,
         },
-        pulses: home.heartbeat?.pulses || fallbackSiteContent.home.heartbeat.pulses,
+        pulses:
+          home.heartbeat?.pulses || fallbackSiteContent.home.heartbeat.pulses,
       },
       textbook: {
         ...fallbackSiteContent.home.textbook,
@@ -439,7 +551,8 @@ function mergeSiteContent(input: Partial<EditableSiteContent> | null): EditableS
           ...fallbackSiteContent.home.textbook.image,
           ...home.textbook?.image,
         },
-        bullets: home.textbook?.bullets || fallbackSiteContent.home.textbook.bullets,
+        bullets:
+          home.textbook?.bullets || fallbackSiteContent.home.textbook.bullets,
         primaryCta: {
           ...fallbackSiteContent.home.textbook.primaryCta,
           ...home.textbook?.primaryCta,
@@ -481,27 +594,114 @@ function mergeSiteContent(input: Partial<EditableSiteContent> | null): EditableS
 }
 
 function migrateLegacySiteContent(input: Partial<EditableSiteContent> | null) {
-  if (!input) return input;
-
-  if (input.contentVersion === siteContentSchemaVersion) {
-    return input;
-  }
-
-  // The former launch content contained outdated projected claims. Until an
-  // editor intentionally saves the new active-content model, render the
-  // honest baseline rather than revive those old claims from Redis.
-  return fallbackSiteContent;
+  if (!input || input.contentVersion === siteContentSchemaVersion) return input;
+  // A scoped read-through migration. Unrelated copy, visuals, pages, posts,
+  // media, and editorial settings survive; no Redis data is written on read.
+  const oldNavigation = input.global?.navigation || [];
+  const allKnown = new Set(
+    fallbackSiteContent.global.navigation.flatMap((item) => [
+      item.href,
+      ...(item.children || []).map((child) => child.href),
+    ]),
+  );
+  return {
+    ...input,
+    initiatives: input.initiatives || {
+      ...defaultInitiatives,
+      partners: [
+        ...(
+          input.global?.foundingPartners ||
+          fallbackSiteContent.global.foundingPartners
+        ).map((partner, order): PartnerEntry => ({
+          ...newPartner,
+          id: `founding-${order}`,
+          name: partner.name,
+          website: partner.href,
+          scope: partner.role,
+          description: partner.body,
+          category: partner.role.toLowerCase().includes("technology")
+            ? "Technology partnership"
+            : "Founding collaboration",
+          status: "published",
+          approval: "approved",
+          order,
+        })),
+        ...defaultInitiatives.partners.filter((partner) =>
+          partner.id.startsWith("education-"),
+        ),
+      ],
+    },
+    global: {
+      ...fallbackSiteContent.global,
+      ...input.global,
+      email: "setuai.edu@gmail.com",
+      navCta: fallbackSiteContent.global.navCta,
+      navigation: [
+        ...fallbackSiteContent.global.navigation.map((item) =>
+          item.href === "/get-involved"
+            ? {
+                ...item,
+                children: [
+                  ...(item.children || []),
+                  ...oldNavigation
+                    .filter((old) => allKnown.has(old.href))
+                    .flatMap((old) => old.children || [])
+                    .filter((child) => !allKnown.has(child.href)),
+                ],
+              }
+            : item,
+        ),
+        ...oldNavigation.filter((item) => !allKnown.has(item.href)),
+      ],
+      footerColumns: (
+        input.global?.footerColumns || fallbackSiteContent.global.footerColumns
+      ).map((column, index) => ({
+        ...column,
+        links: [
+          ...column.links,
+          ...(index === 0
+            ? [
+                { label: "Chapters", href: "/chapters" },
+                { label: "Platform beta", href: "/platform" },
+                { label: "Recommendations", href: "/recommendations" },
+              ].filter(
+                (link) => !column.links.some((old) => old.href === link.href),
+              )
+            : []),
+        ],
+      })),
+    },
+    seo: { ...input.seo, ...fallbackSiteContent.seo },
+    home: {
+      ...input.home,
+      hero: {
+        ...fallbackSiteContent.home.hero,
+        image: input.home?.hero?.image || fallbackSiteContent.home.hero.image,
+      },
+      textbook: {
+        ...fallbackSiteContent.home.textbook,
+        image:
+          input.home?.textbook?.image ||
+          fallbackSiteContent.home.textbook.image,
+      },
+      stats: fallbackSiteContent.home.stats,
+    } as EditableSiteContent["home"],
+  };
 }
 
-
 export async function getSiteContent() {
-  return replaceLegacySetuAiArtwork(mergeSiteContent(await readValue<EditableSiteContent>(keys.siteContent)));
+  return currentGeneralContact(
+    replaceLegacySetuAiArtwork(
+      mergeSiteContent(await readValue<EditableSiteContent>(keys.siteContent)),
+    ),
+  );
 }
 
 export async function saveSiteContent(input: Partial<EditableSiteContent>) {
   const existing = await getSiteContent();
   const siteContent: EditableSiteContent = {
     contentVersion: siteContentSchemaVersion,
+    initiatives: mergeInitiatives(input.initiatives || existing.initiatives),
     global: {
       ...existing.global,
       ...input.global,
@@ -525,8 +725,11 @@ export async function saveSiteContent(input: Partial<EditableSiteContent>) {
   return normalizedSiteContent;
 }
 
-function replaceLegacySetuAiArtwork(content: EditableSiteContent): EditableSiteContent {
-  if (content.home.heartbeat.image.src !== "/images/skypa-higgsfield-heart.png") return content;
+function replaceLegacySetuAiArtwork(
+  content: EditableSiteContent,
+): EditableSiteContent {
+  if (content.home.heartbeat.image.src !== "/images/skypa-higgsfield-heart.png")
+    return content;
 
   return {
     ...content,
@@ -543,7 +746,9 @@ function replaceLegacySetuAiArtwork(content: EditableSiteContent): EditableSiteC
   };
 }
 
-export async function saveMediaUpload(input: Omit<CmsMediaUpload, "createdAt">) {
+export async function saveMediaUpload(
+  input: Omit<CmsMediaUpload, "createdAt">,
+) {
   const media: CmsMediaUpload = {
     ...input,
     createdAt: now(),
@@ -556,41 +761,120 @@ export async function getMediaUpload(id: string) {
   return readValue<CmsMediaUpload>(`${keys.media}${id}`);
 }
 
+const submissionRecordsKey = `${keys.submissions}:records`;
+
 export async function getSubmissions() {
-  return readCollection<CmsSubmission>(keys.submissions, []);
+  const client = redis();
+  if (!client) return [];
+  // Read failures must be visible: silently treating an outage as an empty
+  // collection could otherwise erase existing submissions during an update.
+  const [legacy, records] = await Promise.all([
+    client.get<CmsSubmission[]>(keys.submissions),
+    client.hgetall<Record<string, CmsSubmission>>(submissionRecordsKey),
+  ]);
+  const byId = new Map(
+    (parseStored<CmsSubmission[]>(legacy) || []).map((item) => [item.id, item]),
+  );
+  for (const item of Object.values(records || {})) {
+    const parsed = parseStored<CmsSubmission>(item);
+    if (parsed) byId.set(parsed.id, parsed);
+  }
+  return [...byId.values()].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
-export async function saveSubmission(input: Omit<CmsSubmission, "id" | "createdAt" | "read">) {
-  const submissions = await getSubmissions();
+export async function saveSubmission(
+  input: Omit<CmsSubmission, "id" | "createdAt" | "read">,
+  fingerprint?: string,
+) {
+  const client = redis();
+  if (!client) throw new Error("Upstash is not configured.");
   const submission: CmsSubmission = {
-    id: crypto.randomUUID(),
+    id: fingerprint ? `inquiry-${fingerprint}` : randomUUID(),
     ...input,
     createdAt: now(),
     read: false,
   };
-  await writeCollection(keys.submissions, [submission, ...submissions]);
-  return submission;
+  const created = await client.hsetnx(
+    submissionRecordsKey,
+    submission.id,
+    submission,
+  );
+  if (!created) {
+    const existing = parseStored<CmsSubmission>(
+      await client.hget(submissionRecordsKey, submission.id),
+    );
+    if (!existing) throw new Error("Unable to load the saved submission.");
+    return { submission: existing, duplicate: true };
+  }
+  return { submission, duplicate: false };
+}
+
+export async function getSubmission(id: string) {
+  const client = redis();
+  if (!client) throw new Error("Upstash is not configured.");
+  const entry = parseStored<CmsSubmission>(
+    await client.hget(submissionRecordsKey, id),
+  );
+  return (
+    entry || (await getSubmissions()).find((item) => item.id === id) || null
+  );
 }
 
 export async function markSubmissionRead(id: string) {
-  const submissions = await getSubmissions();
-  await writeCollection(
-    keys.submissions,
-    submissions.map((submission) => (submission.id === id ? { ...submission, read: true } : submission)),
-  );
+  return updateSubmission(id, { read: true });
 }
 
-export async function updateSubmission(id: string, input: Partial<Pick<CmsSubmission, "status" | "assignedTo" | "notes" | "read">>) {
-  const submissions = await getSubmissions();
-  const existing = submissions.find((submission) => submission.id === id);
+export async function updateSubmission(
+  id: string,
+  input: Partial<
+    Pick<
+      CmsSubmission,
+      | "status"
+      | "assignedTo"
+      | "notes"
+      | "read"
+      | "notificationStatus"
+      | "notificationError"
+      | "notifiedAt"
+      | "providerMessageId"
+    >
+  >,
+) {
+  const client = redis();
+  if (!client) throw new Error("Upstash is not configured.");
+  const existing = await getSubmission(id);
   if (!existing) return null;
-
-  const next = { ...existing, ...input };
-  await writeCollection(
-    keys.submissions,
-    submissions.map((submission) => (submission.id === id ? next : submission)),
-  );
+  const next = {
+    ...existing,
+    ...Object.fromEntries(
+      Object.entries(input).filter(([, value]) => value !== undefined),
+    ),
+  };
+  await client.hset(submissionRecordsKey, { [id]: next });
   return next;
+}
+
+export async function acquireNotificationLock(id: string) {
+  const client = redis();
+  if (!client) throw new Error("Upstash is not configured.");
+  const token = randomUUID();
+  const acquired = await client.set(
+    `${keys.submissions}:notification-lock:${id}`,
+    token,
+    { nx: true, ex: 120 },
+  );
+  return acquired ? token : null;
+}
+export async function releaseNotificationLock(id: string, token: string) {
+  const client = redis();
+  if (!client) return;
+  await client.eval(
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+    [`${keys.submissions}:notification-lock:${id}`],
+    [token],
+  );
 }
 
 export async function getSubscribers() {
@@ -598,14 +882,19 @@ export async function getSubscribers() {
 }
 
 export async function saveSubscriber(
-  input: Omit<CmsSubscriber, "id" | "createdAt" | "updatedAt" | "active" | "unsubscribeTokenHash"> & {
+  input: Omit<
+    CmsSubscriber,
+    "id" | "createdAt" | "updatedAt" | "active" | "unsubscribeTokenHash"
+  > & {
     active?: boolean;
     unsubscribeTokenHash?: string;
   },
 ) {
   const subscribers = await getSubscribers();
   const normalizedEmail = input.email.trim().toLowerCase();
-  const existing = subscribers.find((subscriber) => subscriber.email === normalizedEmail);
+  const existing = subscribers.find(
+    (subscriber) => subscriber.email === normalizedEmail,
+  );
   const subscriber: CmsSubscriber = {
     id: existing?.id || crypto.randomUUID(),
     email: normalizedEmail,
@@ -614,22 +903,38 @@ export async function saveSubscriber(
     active: input.active ?? true,
     confirmedAt: input.confirmedAt ?? existing?.confirmedAt,
     consentAt: input.consentAt ?? existing?.consentAt,
-    confirmationTokenHash: input.confirmationTokenHash ?? existing?.confirmationTokenHash,
-    unsubscribeTokenHash: input.unsubscribeTokenHash || existing?.unsubscribeTokenHash || tokenHash(randomUUID()),
+    confirmationTokenHash:
+      input.confirmationTokenHash ?? existing?.confirmationTokenHash,
+    unsubscribeTokenHash:
+      input.unsubscribeTokenHash ||
+      existing?.unsubscribeTokenHash ||
+      tokenHash(randomUUID()),
     createdAt: existing?.createdAt || now(),
     updatedAt: now(),
   };
-  await writeCollection(keys.subscribers, [subscriber, ...subscribers.filter((item) => item.id !== subscriber.id)]);
+  await writeCollection(keys.subscribers, [
+    subscriber,
+    ...subscribers.filter((item) => item.id !== subscriber.id),
+  ]);
   return subscriber;
 }
 
-export async function createPendingSubscriber(input: { email: string; name?: string; source: string }) {
+export async function createPendingSubscriber(input: {
+  email: string;
+  name?: string;
+  source: string;
+}) {
   const subscribers = await getSubscribers();
   const email = input.email.trim().toLowerCase();
   const existing = subscribers.find((subscriber) => subscriber.email === email);
 
   if (existing?.active && existing.confirmedAt) {
-    return { subscriber: existing, confirmationToken: null, unsubscribeToken: null, alreadyConfirmed: true };
+    return {
+      subscriber: existing,
+      confirmationToken: null,
+      unsubscribeToken: null,
+      alreadyConfirmed: true,
+    };
   }
 
   const confirmationToken = randomUUID();
@@ -642,19 +947,30 @@ export async function createPendingSubscriber(input: { email: string; name?: str
     active: false,
     consentAt: now(),
     confirmationTokenHash: tokenHash(confirmationToken),
-    unsubscribeTokenHash: existing?.unsubscribeTokenHash || tokenHash(unsubscribeToken),
+    unsubscribeTokenHash:
+      existing?.unsubscribeTokenHash || tokenHash(unsubscribeToken),
     createdAt: existing?.createdAt || now(),
     updatedAt: now(),
   };
 
-  await writeCollection(keys.subscribers, [subscriber, ...subscribers.filter((item) => item.id !== subscriber.id)]);
-  return { subscriber, confirmationToken, unsubscribeToken, alreadyConfirmed: false };
+  await writeCollection(keys.subscribers, [
+    subscriber,
+    ...subscribers.filter((item) => item.id !== subscriber.id),
+  ]);
+  return {
+    subscriber,
+    confirmationToken,
+    unsubscribeToken,
+    alreadyConfirmed: false,
+  };
 }
 
 export async function confirmSubscriber(token: string) {
   const subscribers = await getSubscribers();
   const tokenDigest = tokenHash(token);
-  const existing = subscribers.find((subscriber) => subscriber.confirmationTokenHash === tokenDigest);
+  const existing = subscribers.find(
+    (subscriber) => subscriber.confirmationTokenHash === tokenDigest,
+  );
   if (!existing) return null;
 
   const subscriber: CmsSubscriber = {
@@ -664,24 +980,38 @@ export async function confirmSubscriber(token: string) {
     confirmationTokenHash: undefined,
     updatedAt: now(),
   };
-  await writeCollection(keys.subscribers, [subscriber, ...subscribers.filter((item) => item.id !== subscriber.id)]);
+  await writeCollection(keys.subscribers, [
+    subscriber,
+    ...subscribers.filter((item) => item.id !== subscriber.id),
+  ]);
   return subscriber;
 }
 
 export async function unsubscribeSubscriber(token: string) {
   const subscribers = await getSubscribers();
   const tokenDigest = tokenHash(token);
-  const existing = subscribers.find((subscriber) => subscriber.unsubscribeTokenHash === tokenDigest);
+  const existing = subscribers.find(
+    (subscriber) => subscriber.unsubscribeTokenHash === tokenDigest,
+  );
   if (!existing) return null;
 
-  const subscriber: CmsSubscriber = { ...existing, active: false, updatedAt: now() };
-  await writeCollection(keys.subscribers, [subscriber, ...subscribers.filter((item) => item.id !== subscriber.id)]);
+  const subscriber: CmsSubscriber = {
+    ...existing,
+    active: false,
+    updatedAt: now(),
+  };
+  await writeCollection(keys.subscribers, [
+    subscriber,
+    ...subscribers.filter((item) => item.id !== subscriber.id),
+  ]);
   return subscriber;
 }
 
 export async function createUnsubscribeToken(subscriberId: string) {
   const subscribers = await getSubscribers();
-  const existing = subscribers.find((subscriber) => subscriber.id === subscriberId);
+  const existing = subscribers.find(
+    (subscriber) => subscriber.id === subscriberId,
+  );
   if (!existing) return null;
 
   const token = randomUUID();
@@ -690,19 +1020,23 @@ export async function createUnsubscribeToken(subscriberId: string) {
     unsubscribeTokenHash: tokenHash(token),
     updatedAt: now(),
   };
-  await writeCollection(keys.subscribers, [subscriber, ...subscribers.filter((item) => item.id !== subscriber.id)]);
+  await writeCollection(keys.subscribers, [
+    subscriber,
+    ...subscribers.filter((item) => item.id !== subscriber.id),
+  ]);
   return token;
 }
 
 export async function getDashboardSummary() {
-  const [posts, pages, programEntries, albums, submissions, subscribers] = await Promise.all([
-    getPosts(),
-    getPages(),
-    getPrograms(),
-    getGalleryAlbums(),
-    getSubmissions(),
-    getSubscribers(),
-  ]);
+  const [posts, pages, programEntries, albums, submissions, subscribers] =
+    await Promise.all([
+      getPosts(),
+      getPages(),
+      getPrograms(),
+      getGalleryAlbums(),
+      getSubmissions(),
+      getSubscribers(),
+    ]);
 
   return {
     posts,
@@ -712,12 +1046,14 @@ export async function getDashboardSummary() {
     submissions,
     subscribers,
     stats: {
-      publishedPosts: posts.filter((post) => post.status === "published").length,
+      publishedPosts: posts.filter((post) => post.status === "published")
+        .length,
       drafts: posts.filter((post) => post.status === "draft").length,
       pages: pages.length,
       programs: programEntries.length,
       albums: albums.length,
-      unreadMessages: submissions.filter((submission) => !submission.read).length,
+      unreadMessages: submissions.filter((submission) => !submission.read)
+        .length,
       subscribers: subscribers.filter((subscriber) => subscriber.active).length,
     },
   };

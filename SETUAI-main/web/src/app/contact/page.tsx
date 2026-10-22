@@ -8,7 +8,9 @@ export const metadata = createMetadata({
   path: "/contact",
 });
 
-export default function ContactPage() {
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ interest?: string }> }) {
+  const { interest } = await searchParams;
+  const formType = interest === "sponsor" ? "sponsor" : interest === "volunteer" ? "volunteer" : "contact";
   return (
     <>
       <section className="section-pad bg-[var(--color-surface)]">
@@ -21,6 +23,7 @@ export default function ContactPage() {
             <p className="pretty mt-5 text-lg leading-8 text-[var(--color-ink-soft)]">
               SetuAI is actively operating. Use this form to share a school or community context, sponsorship or partnership interest, volunteer interest, textbook questions, or a general question. A submission starts a working conversation and helps us understand the next step.
             </p>
+            <a className="subtle-link mt-6 inline-block" href="mailto:setuai.edu@gmail.com">setuai.edu@gmail.com</a>
             <div className="soft-card mt-8 grid gap-4 p-5">
               <div>
                 <h2 className="text-base font-medium text-[var(--color-ink)]">Best details to include</h2>
@@ -30,7 +33,7 @@ export default function ContactPage() {
               </div>
             </div>
           </div>
-          <LeadForm formType="contact" title="Send SetuAI a message" />
+          <LeadForm formType={formType} title="Send SetuAI a message" />
         </div>
       </section>
       <section className="section-pad bg-[var(--background)]">

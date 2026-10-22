@@ -19,7 +19,7 @@ export default async function AdminSubmissionsPage() {
   const submissions = await getSubmissions();
 
   return (
-    <AdminShell active="submissions" title="Submissions" description="Review school, volunteer, sponsor, and contact messages.">
+    <AdminShell active="submissions" title="Submissions" description="Review inquiries, chapter applications, and beta requests. Email status means provider acceptance, not confirmed inbox delivery.">
       {submissions.length ? (
         <div className="grid gap-4">
           {submissions.map((submission) => (
@@ -41,6 +41,10 @@ export default async function AdminSubmissionsPage() {
                   {(submission.status || "new") === "in-progress" ? <AdminMutationButton label="Close" endpoint={`/api/admin/submissions/${submission.id}`} body={{ status: "closed", read: true }} /> : null}
                 </div>
               </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3 text-sm"><strong>Email notification: {submission.notificationStatus || "not recorded"}</strong>{submission.notificationStatus !== "sent" ? <AdminMutationButton label="Retry notification" method="POST" endpoint={`/api/admin/submissions/${submission.id}/notify`} /> : null}</div>
+              {submission.notificationError ? <p className="mt-2 text-sm text-red-800">{submission.notificationError}</p> : null}
+              <p className="mt-3 text-sm">Source: {submission.sourcePage || "Not recorded"}</p>
+              <dl className="mt-4 grid gap-3">{Object.entries(submission.fields || {}).map(([key, value]) => <div key={key}><dt className="font-semibold">{key}</dt><dd className="whitespace-pre-wrap text-sm leading-6">{value}</dd></div>)}</dl>
               <p className="mt-4 text-sm font-black text-[#2a1b22]">{submission.interest}</p>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#5e5055]">{submission.message}</p>
               <p className="mt-4 text-xs font-bold text-[#7b6a70]">Privacy notice acknowledged: {submission.privacyAcknowledged ? "yes" : "not recorded"}. Updates requested: {submission.updatesOptIn ? "yes, confirmation required" : "no"}.</p>

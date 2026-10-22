@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/components/language-provider";
-import { localeLabels, translatePhrase, type Locale } from "@/lib/i18n";
+import { hindiContentReviewed, localeLabels, translatePhrase, type Locale } from "@/lib/i18n";
 import { cx } from "@/lib/utils";
 
 const options: Locale[] = ["en", "hi"];
@@ -18,6 +18,8 @@ export function LanguageToggle({ className }: { className?: string }) {
         <button
           key={option}
           type="button"
+          disabled={option === "hi" && !hindiContentReviewed}
+          title={option === "hi" && !hindiContentReviewed ? "Hindi content is in editorial review" : undefined}
           onClick={() => setLocale(option)}
           className={cx(
             "focus-ring min-h-10 flex-1 whitespace-nowrap px-2.5 text-center text-xs font-semibold leading-[1.15] transition-colors",

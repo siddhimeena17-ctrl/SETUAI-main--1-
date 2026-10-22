@@ -1,122 +1,198 @@
-import { Resend } from "resend";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { saveSubmission } from "@/lib/cms";
-import { checkPublicRateLimit, clampText, rateLimitResponse } from "@/lib/security";
+import { saveSubmission, getSiteContent } from "@/lib/cms";
+import { notifySubmission } from "@/lib/inquiry-email";
+import { fieldsFor, formTypes, type FormType } from "@/content/form-fields";
+import { checkPublicRateLimit, rateLimitResponse } from "@/lib/security";
 import { isValidEmail, requestUpdateSubscription } from "@/lib/subscribers";
-import { logRouteInfo } from "@/lib/observability";
-
-type FormPayload = {
-  formType?: string;
-  payload?: Record<string, unknown>;
-};
-
-const allowedFormTypes = new Set(["school", "volunteer", "sponsor", "contact"]);
-const DEFAULT_INQUIRY_FROM_EMAIL = "SetuAI inquiries <hello@setuai.org>";
-const DEFAULT_INQUIRY_NOTIFY_TO = "hello@setuai.org";
 
 export const runtime = "nodejs";
-
-function escapeHtml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const maxDuration = 60;
+function clean(value: unknown) {
+  return typeof value === "string"
+    ? value
+        .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+        .trim()
+    : "";
 }
-
-async function notifyInquiry(input: { formType: string; name: string; email: string; organization: string; interest: string; message: string }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.INQUIRY_FROM_EMAIL || DEFAULT_INQUIRY_FROM_EMAIL;
-  const to = process.env.INQUIRY_NOTIFY_TO || DEFAULT_INQUIRY_NOTIFY_TO;
-  if (!apiKey) return;
-
-  const resend = new Resend(apiKey);
-  const fields = [
-    ["Name", input.name],
-    ["Email", input.email],
-    ["Organization", input.organization || "Not provided"],
-    ["Interest", input.interest || "Not provided"],
-    ["Message", input.message],
-  ];
-  const html = `<h1>New SetuAI inquiry</h1><p><strong>Type:</strong> ${escapeHtml(input.formType)}</p>${fields.map(([label, value]) => `<p><strong>${label}:</strong> ${escapeHtml(value)}</p>`).join("")}`;
-  await resend.emails.send({ from, to, subject: `New SetuAI inquiry: ${input.formType}`, html, text: fields.map(([label, value]) => `${label}: ${value}`).join("\n") });
-}
-
 export async function POST(request: Request) {
-  const startedAt = Date.now();
-  const ipRate = await checkPublicRateLimit({
-    request,
-    scope: "forms-ip",
-    limit: 8,
-    windowSeconds: 15 * 60,
-  });
-
-  if (!ipRate.allowed) return rateLimitResponse(ipRate.retryAfter);
-
-  const body = (await request.json().catch(() => null)) as FormPayload | null;
-
-  if (!body?.formType || !allowedFormTypes.has(body.formType) || !body.payload) {
-    return NextResponse.json({ error: "Invalid submission" }, { status: 400 });
+  try {
+    const rate = await checkPublicRateLimit({
+      request,
+      scope: "forms-ip",
+      limit: 8,
+      windowSeconds: 900,
+    });
+    if (!rate.allowed) return rateLimitResponse(rate.retryAfter);
+    if (!request.headers.get("content-type")?.includes("application/json"))
+      return NextResponse.json(
+        { error: "Use a JSON request." },
+        { status: 415 },
+      );
+    const raw = await request.text();
+    if (raw.length > 20000)
+      return NextResponse.json(
+        { error: "Submission is too large." },
+        { status: 413 },
+      );
+    let body;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid submission." },
+        { status: 400 },
+      );
+    }
+    const type = body?.formType as FormType;
+    const payload = body?.payload;
+    if (
+      !formTypes.includes(type) ||
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload)
+    )
+      return NextResponse.json(
+        { error: "Invalid submission." },
+        { status: 400 },
+      );
+    if (clean(payload.companyWebsite || payload.website))
+      return NextResponse.json({ ok: true });
+    const values: Record<string, string> = {};
+    for (const field of fieldsFor(type)) {
+      const cleaned = clean(payload[field.name]);
+      const value =
+        field.kind === "textarea" ? cleaned : cleaned.replace(/\s+/g, " ");
+      if (
+        (field.required && !value) ||
+        value.length > (field.max || 250) ||
+        (value && field.options && !field.options.includes(value)) ||
+        (value &&
+          field.kind === "number" &&
+          (!/^\d{1,6}$/.test(value) || Number(value) < 1))
+      )
+        return NextResponse.json(
+          { error: `Please check: ${field.label}.` },
+          { status: 400 },
+        );
+      values[field.name] = value;
+    }
+    values.email = values.email.toLowerCase();
+    const privacyAcknowledged =
+      payload.privacyAcknowledged === "on" ||
+      payload.privacyAcknowledged === true;
+    const updatesOptIn =
+      !["chapter", "beta"].includes(type) &&
+      (payload.updatesOptIn === "on" || payload.updatesOptIn === true);
+    if (
+      !isValidEmail(values.email) ||
+      values.name.length < 2 ||
+      !privacyAcknowledged
+    )
+      return NextResponse.json(
+        {
+          error:
+            "Please provide your name, a valid email, and the privacy acknowledgment.",
+        },
+        { status: 400 },
+      );
+    const emailRate = await checkPublicRateLimit({
+      request,
+      scope: "forms-email",
+      identifier: values.email,
+      limit: 4,
+      windowSeconds: 3600,
+    });
+    if (!emailRate.allowed) return rateLimitResponse(emailRate.retryAfter);
+    if (type === "chapter" || type === "beta") {
+      const { initiatives } = await getSiteContent();
+      if (
+        type === "chapter"
+          ? !initiatives.chapters.applicationsOpen
+          : !initiatives.platform.betaOpen
+      )
+        return NextResponse.json(
+          {
+            error:
+              "This application form is currently paused. Please contact SetuAI.",
+          },
+          { status: 409 },
+        );
+    }
+    const sourcePage =
+      typeof body.sourcePage === "string" &&
+      /^\/[a-z0-9/-]*$/i.test(body.sourcePage)
+        ? body.sourcePage.slice(0, 200)
+        : "/contact";
+    // Identical payloads share a durable ID, even across concurrent requests,
+    // page reloads, client timeouts, and notification retries.
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify({ type, values, updatesOptIn }))
+      .digest("hex");
+    const extras = Object.fromEntries(
+      Object.entries(values).filter(
+        ([key]) =>
+          !["name", "email", "organization", "interest", "message"].includes(
+            key,
+          ),
+      ),
+    );
+    const { submission, duplicate } = await saveSubmission(
+      {
+        formType: type,
+        name: values.name,
+        email: values.email,
+        organization: values.organization || "",
+        interest:
+          values.interest || values.participation || values.setting || "",
+        message: values.message || "",
+        sourcePage,
+        fields: extras,
+        status: "new",
+        privacyAcknowledged,
+        updatesOptIn,
+        notificationStatus: "pending",
+      },
+      fingerprint,
+    );
+    let notification: "sent" | "pending" =
+      submission.notificationStatus === "sent" ? "sent" : "pending";
+    try {
+      notification = (await notifySubmission(submission.id)).status;
+    } catch {
+      /* Saved inquiry remains visible and retryable in admin. */
+    }
+    let subscription = "not-requested";
+    if (updatesOptIn && !duplicate) {
+      try {
+        const result = await requestUpdateSubscription({
+          email: values.email,
+          name: values.name,
+          source: ["school", "volunteer", "sponsor"].includes(type)
+            ? (type as "school" | "volunteer" | "sponsor")
+            : "contact",
+        });
+        subscription = result.confirmationSent
+          ? "confirmation-sent"
+          : "pending";
+      } catch {
+        subscription = "pending";
+      }
+    }
+    return NextResponse.json({
+      ok: true,
+      submissionId: submission.id,
+      duplicate,
+      notification,
+      subscription,
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "We could not save your request. Please try again or email setuai.edu@gmail.com.",
+      },
+      { status: 503 },
+    );
   }
-
-  const payload = body.payload;
-  const honeypot = clampText(payload.companyWebsite || payload.website, 120);
-
-  if (honeypot) {
-    return NextResponse.json({ ok: true });
-  }
-
-  const email = clampText(payload.email, 160).toLowerCase();
-  const name = clampText(payload.name, 120);
-  const organization = clampText(payload.organization, 160);
-  const interest = clampText(payload.interest, 120);
-  const message = clampText(payload.message, 2000);
-  const privacyAcknowledged = payload.privacyAcknowledged === "on" || payload.privacyAcknowledged === true;
-  const updatesOptIn = payload.updatesOptIn === "on" || payload.updatesOptIn === true;
-
-  const emailRate = await checkPublicRateLimit({
-    request,
-    scope: "forms-email",
-    identifier: email || "blank",
-    limit: 4,
-    windowSeconds: 60 * 60,
-  });
-
-  if (!emailRate.allowed) return rateLimitResponse(emailRate.retryAfter);
-
-  if (!isValidEmail(email) || name.length < 2 || message.length < 4 || !privacyAcknowledged) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
-
-  const submission = await saveSubmission({
-    formType: body.formType,
-    name,
-    email,
-    organization,
-    interest,
-    message,
-    status: "new",
-    privacyAcknowledged,
-    updatesOptIn,
-  });
-
-  void notifyInquiry({ formType: body.formType, name, email, organization, interest, message }).catch(() => null);
-
-  const subscription = updatesOptIn
-    ? await requestUpdateSubscription({
-        email,
-        name,
-        source: body.formType === "school" || body.formType === "volunteer" || body.formType === "sponsor" ? body.formType : "contact",
-      })
-    : null;
-
-  logRouteInfo("public_form_received", {
-    route: "/api/forms",
-    request_id: request.headers.get("x-vercel-id"),
-    form_type: body.formType,
-    updates_opt_in: updatesOptIn,
-    duration_ms: Date.now() - startedAt,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    submissionId: submission.id,
-    subscription: subscription?.confirmationSent ? "confirmation-sent" : updatesOptIn ? "pending" : "not-requested",
-  });
 }
