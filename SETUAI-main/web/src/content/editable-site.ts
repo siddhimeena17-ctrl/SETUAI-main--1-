@@ -128,7 +128,7 @@ export type EditableSiteContent = {
   updatedAt: string;
 };
 
-export const siteContentSchemaVersion = "literacy-2026-10";
+export const siteContentSchemaVersion = "literacy-2026-10-original-hero";
 
 export const fallbackSiteContent: EditableSiteContent = {
   contentVersion: siteContentSchemaVersion,
@@ -166,20 +166,20 @@ export const fallbackSiteContent: EditableSiteContent = {
   home: {
     hero: {
       kicker: "An active AI literacy initiative",
-      title: "Building an AI-literate future, one learner at a time.",
-      body: "Our AI literacy textbook is being prepared for publication. Start a chapter, or join the beta of our learning platform, developed through international collaboration.",
+      title: "SetuAI",
+      body: "SetuAI is actively building practical, responsible AI learning with schools, educators, and community partners.",
       image: {
         src: "/images/skypa-hero-classroom.png",
         alt: "Students learning AI literacy with a teacher in a bright classroom.",
       },
       primaryCta: {
-        label: "Explore the Textbook",
-        href: "/textbook",
+        label: "Start a conversation",
+        href: "/contact",
         variant: "light",
       },
       secondaryCta: {
-        label: "Start a Chapter",
-        href: "/chapters",
+        label: "See our approach",
+        href: "/about",
         variant: "secondary",
       },
     },
