@@ -3,6 +3,8 @@ import { allStaticPaths } from "@/content/site";
 import { getPages, getPrograms, getPublishedPosts } from "@/lib/cms";
 import { absoluteUrl } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 function validDate(value: string | undefined) {
   if (!value) return undefined;
   const date = new Date(value);

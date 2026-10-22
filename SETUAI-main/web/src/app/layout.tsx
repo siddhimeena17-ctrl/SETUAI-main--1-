@@ -1,3 +1,4 @@
+import { publicSiteContent } from "@/lib/initiative-content";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Noto_Sans_Devanagari } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
@@ -28,6 +29,8 @@ const notoDevanagari = Noto_Sans_Devanagari({
   weight: ["400", "500", "600"],
   display: "swap",
 });
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://setuai.org"),
@@ -81,7 +84,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const content = await getSiteContent();
+  const content = publicSiteContent(await getSiteContent());
 
   return (
     <html

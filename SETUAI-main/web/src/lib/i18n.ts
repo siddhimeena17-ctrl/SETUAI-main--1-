@@ -1,5 +1,7 @@
 export type Locale = "en" | "hi";
 
+export const hindiContentReviewed = process.env.NEXT_PUBLIC_HINDI_CONTENT_REVIEWED === "true";
+
 export const defaultLocale: Locale = "en";
 
 export const localeLabels: Record<Locale, string> = {

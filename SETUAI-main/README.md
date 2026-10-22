@@ -50,7 +50,7 @@ AI_GATEWAY_MODEL=amazon/nova-micro
 RESEND_API_KEY=...
 UPDATES_FROM_EMAIL=updates@your-verified-domain.example
 INQUIRY_FROM_EMAIL=inquiries@your-verified-domain.example
-INQUIRY_NOTIFY_TO=team@your-verified-domain.example
+INQUIRY_NOTIFY_TO=setuai.edu@gmail.com
 UPDATES_WEBHOOK_SECRET=...
 ```
 
@@ -80,3 +80,7 @@ enabling the Hindi edition.
 Read `web/node_modules/next/dist/docs/` before changing routing, metadata,
 route handlers, caching, or file conventions. In this version, App Router
 `params` and `searchParams` are promise-based.
+
+## October 2026 content update
+
+See [CONTENT_UPDATE_REVIEW.md](CONTENT_UPDATE_REVIEW.md) for the route inventory, compatible CMS migration, recommendation provenance, non-delivering test results, missing assets, and deployment configuration. Inquiries are routed server-side to `setuai.edu@gmail.com`; configure an existing Resend-verified organization sender for `INQUIRY_FROM_EMAIL`.

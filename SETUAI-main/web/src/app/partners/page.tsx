@@ -1,3 +1,5 @@
+import { PartnerDirectory } from "@/components/partner-directory";
+import { getSiteContent } from "@/lib/cms";
 import Image from "next/image";
 import { BookOpen, Building2, GraduationCap, HandHeart, ShieldCheck, Users } from "lucide-react";
 import { LeadForm } from "@/components/lead-form";
@@ -11,7 +13,8 @@ export const metadata = createMetadata({
   image: "/images/skypa-partnership-workshop.png",
 });
 
-export default function PartnersPage() {
+export default async function PartnersPage() {
+  const { initiatives } = await getSiteContent();
   return (
     <>
       <section className="bg-[var(--color-surface)]">
@@ -37,6 +40,7 @@ export default function PartnersPage() {
           </div>
         </div>
       </section>
+      <section className="section-pad"><div className="section-shell"><h2 className="feature-heading mb-10">Our collaboration network</h2><PartnerDirectory content={initiatives} /></div></section>
       <section className="section-pad bg-[var(--background)]">
         <div className="section-shell grid gap-10 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="grid gap-4">
@@ -64,7 +68,7 @@ export default function PartnersPage() {
               </div>
             ))}
           </div>
-          <LeadForm formType="school" title="Start a partnership conversation" />
+          <LeadForm formType="nonprofit" title="Start a partnership conversation" />
         </div>
       </section>
       <section className="section-pad bg-[var(--color-surface)]">

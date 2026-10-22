@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { InitiativeEditor } from "@/components/initiative-editor";
 
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -863,6 +865,7 @@ function PageEditorPreview({
 export function SiteContentForm({ content: initialContent }: { content: EditableSiteContent }) {
   const router = useRouter();
   const [state, setState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState("");
   const [content, setContent] = useState<EditableSiteContent>(initialContent);
 
   function updateGlobal(global: Partial<EditableSiteContent["global"]>) {
@@ -889,20 +892,19 @@ export function SiteContentForm({ content: initialContent }: { content: Editable
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setState("saving");
-    const response = await fetch("/api/admin/site-content", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(content),
-    });
-
-    if (!response.ok) {
-      setState("error");
-      return;
+    if (state === "saving") return;
+    setState("saving"); setSaveError("");
+    try {
+      const response = await fetch("/api/admin/site-content", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(content),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error || "Save failed. Please try again.");
+      if (result?.content) setContent(result.content);
+      setState("idle"); router.refresh();
+    } catch (failure) {
+      setState("error"); setSaveError(failure instanceof Error ? failure.message : "Connection failed. Please try again.");
     }
-
-    setState("idle");
-    router.refresh();
   }
 
   return (
@@ -916,11 +918,12 @@ export function SiteContentForm({ content: initialContent }: { content: Editable
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {state === "error" ? <p className="text-sm font-bold text-[#9f1239]">Save failed.</p> : null}
+          {state === "error" ? <p className="text-sm font-bold text-[#9f1239]" role="alert">{saveError || "Save failed."}</p> : null}
           <SubmitButton state={state} />
         </div>
       </div>
 
+      <InitiativeEditor value={content.initiatives} onChange={(initiatives) => setContent((current) => ({ ...current, initiatives }))} />
       <FieldPanel title="Global Brand, Navigation, and Footer" description="Controls the logo, site name, main menu, footer columns, contact email, and public footer text.">
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Site name" value={content.global.siteName} onChange={(siteName) => updateGlobal({ siteName })} required />
@@ -997,7 +1000,7 @@ export function SiteContentForm({ content: initialContent }: { content: Editable
         <CtaEditor cta={content.home.hero.secondaryCta} onChange={(secondaryCta) => updateHome("hero", { ...content.home.hero, secondaryCta })} label="Secondary CTA" />
       </FieldPanel>
 
-      <FieldPanel title="Homepage Intro and Impact" description="Controls the mission statement section and the four impact numbers under the hero.">
+      <FieldPanel title="Homepage Intro and Impact" description="Controls the mission statement section and the supporting impact content.">
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Intro label" value={content.home.intro.kicker} onChange={(kicker) => updateHome("intro", { ...content.home.intro, kicker })} />
           <TextField label="Intro headline" value={content.home.intro.title} onChange={(title) => updateHome("intro", { ...content.home.intro, title })} />
@@ -1253,6 +1256,8 @@ export function PageForm({ page }: { page?: CmsPage | null }) {
 
   return (
     <form onSubmit={onSubmit} className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,430px)] xl:items-start">
+      {["textbook", "impact"].includes(initialPage.slug) ? <p className="rounded border border-[#d6cdd1] bg-white p-4 text-sm leading-6">The current textbook and reach details are managed in <Link href="/admin/site-content" className="underline">Full-site content</Link>. This legacy page record is preserved; additional sections with distinct titles appear below the main page.</p> : null}
+
       <div className="grid gap-5 rounded-md border border-[#e4d9dc] bg-white p-6">
       <div className="rounded-md border border-[#e4d9dc] bg-[#fbf8f6] p-4">
         <h2 className="text-lg font-black text-[#2a1b22]">Hero and SEO</h2>

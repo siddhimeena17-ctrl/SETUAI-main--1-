@@ -69,7 +69,9 @@ export async function sendPublishedUpdateEmail(update: CmsPost) {
     if (!token) throw new Error("Unable to create unsubscribe token");
     const unsubscribeUrl = absoluteUrl(`/api/updates/unsubscribe?token=${encodeURIComponent(token)}`);
     const message = emailContent(update, unsubscribeUrl);
-    return resend.emails.send({ from: mail.from, to: subscriber.email, ...message });
+    const result = await resend.emails.send({ from: mail.from, to: subscriber.email, ...message });
+    if (result.error || !result.data?.id) throw new Error("Update email not accepted");
+    return result;
   });
   const failed = results.filter((result) => result.status === "rejected").length;
 
